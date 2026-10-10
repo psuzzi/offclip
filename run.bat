@@ -26,6 +26,12 @@ if not exist ".venv\Scripts\python.exe" (
 )
 
 if "%~1"=="" (
+  ".venv\Scripts\python.exe" -c "import tkinter" >nul 2>&1 || (
+    echo The window needs Tkinter. Re-run the Python installer from python.org, choose Modify,
+    echo and tick "tcl/tk and IDLE". Then delete the .venv folder and start offclip again.
+    pause
+    exit /b 1
+  )
   start "" ".venv\Scripts\pythonw.exe" -m offclip
 ) else (
   ".venv\Scripts\python.exe" -m offclip %*
