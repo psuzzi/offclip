@@ -1,0 +1,51 @@
+# --- offclip runtime (created next to the program on first run) ---
+.venv/
+venv/
+env/
+settings.json
+offclip.log
+*.log
+
+# media that could land in the program folder if chosen as the download location
+*.mp3
+*.mp4
+*.m4a
+*.webm
+*.mkv
+*.opus
+*.ogg
+*.wav
+*.part
+*.ytdl
+*.temp
+downloads/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+dist/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+
+# --- editors / tools ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.ai/
+.claude/
+
+# --- OS ---
+.DS_Store
+._*
+Thumbs.db
+desktop.ini
