@@ -8,6 +8,11 @@ paste up to 10 links, tick **MP3** and/or **MP4** with the quality you want, cho
 fetched automatically into a private `.venv` folder next to the program on the first run, and
 yt-dlp is kept up to date on every start.
 
+## Download
+
+**[Download the latest release](https://github.com/psuzzi/offclip/releases/latest)** → `offclip-<version>.zip`,
+unzip it anywhere, then start the launcher for your OS (see *Install*). The only requirement is Python.
+
 ## Requirements
 
 - Python **3.9 or newer** with Tkinter (the python.org installers for Windows and macOS include it;
@@ -17,7 +22,7 @@ yt-dlp is kept up to date on every start.
 
 ## Install
 
-1. **Download**: on GitHub, *Code ▸ Download ZIP*, then unzip anywhere you like (or `git clone https://github.com/psuzzi/offclip`).
+1. **Download** `offclip-<version>.zip` from the [releases page](https://github.com/psuzzi/offclip/releases/latest) and unzip it anywhere you like (or `git clone https://github.com/psuzzi/offclip`).
 2. **Install Python** if you do not have it (per-OS notes below).
 3. **Start** the launcher for your OS. The first start takes about a minute; later starts are immediate.
 
@@ -71,7 +76,7 @@ On Windows use `run.bat` instead of `./run.sh`. Files are named `Title [videoid]
 
 - **yt-dlp** updates itself every time offclip starts. If downloads stop working, simply start
   offclip again: sites change often, and a stale yt-dlp is the usual cause.
-- **offclip** itself: download the ZIP again and unzip over the old folder (or `git pull`). Your
+- **offclip** itself: download the new release ZIP and unzip over the old folder (or `git pull`). Your
   `.venv`, `settings.json` and downloads are untouched.
 - **Move** the folder anywhere; nothing is installed outside it.
 - **Remove** it by deleting the folder. Nothing else is left on the system.
