@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import os
 import platform
+import shutil
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -14,9 +15,10 @@ from typing import Callable, List, Optional
 
 from . import __version__
 
-APP_DIR = Path(__file__).resolve().parent.parent      # the folder the user downloaded
-SETTINGS_FILE = APP_DIR / "settings.json"
-LOG_FILE = APP_DIR / "offclip.log"
+APP_DIR = Path(os.environ.get("OFFCLIP_APP") or Path(__file__).resolve().parent.parent)   # the code
+DATA_DIR = Path(os.environ.get("OFFCLIP_DATA") or APP_DIR)   # per-user data (set by the bootstrap; falls back to the app folder)
+SETTINGS_FILE = DATA_DIR / "settings.json"
+LOG_FILE = DATA_DIR / "offclip.log"
 MAX_ROWS = 10
 MP3_BITRATES = [320, 256, 192, 160, 128, 112, 96, 80, 64, 48, 32]   # standard MP3 bitrates
 
@@ -44,23 +46,25 @@ def default_outdir() -> str:
 
 # ----------------------------------------------------------------------------- ffmpeg
 
-_ffmpeg_dir: Optional[str] = None
+_ffmpeg: Optional[str] = None
 
 
-def ffmpeg_dir() -> Optional[str]:
-    """Folder holding ffmpeg/ffprobe from the static-ffmpeg package (fetched on first call).
+def ffmpeg_path() -> Optional[str]:
+    """The ffmpeg executable: the system one if present, else the one from the imageio-ffmpeg package.
 
-    Returns None if unavailable; yt-dlp then falls back to whatever `ffmpeg` is on PATH.
+    None if neither exists; yt-dlp then fails with a clear message on conversions.
     """
-    global _ffmpeg_dir
-    if _ffmpeg_dir is None:
-        try:
-            from static_ffmpeg import run  # type: ignore
-            ffmpeg, _ffprobe = run.get_or_fetch_platform_executables_else_raise()
-            _ffmpeg_dir = str(Path(ffmpeg).parent)
-        except Exception:
-            _ffmpeg_dir = ""
-    return _ffmpeg_dir or None
+    global _ffmpeg
+    if _ffmpeg is None:
+        exe = shutil.which("ffmpeg")
+        if not exe:
+            try:
+                import imageio_ffmpeg  # type: ignore
+                exe = imageio_ffmpeg.get_ffmpeg_exe()
+            except Exception:
+                exe = None
+        _ffmpeg = exe or ""
+    return _ffmpeg or None
 
 
 def versions() -> dict:
@@ -72,7 +76,7 @@ def versions() -> dict:
     return {
         "offclip": __version__,
         "yt_dlp": ytv,
-        "ffmpeg_dir": ffmpeg_dir() or "not found",
+        "ffmpeg": ffmpeg_path() or "not found",
         "python": sys.version.split()[0],
         "os": f"{platform.system()} {platform.release()} ({platform.machine()})",
     }
@@ -103,8 +107,8 @@ class Clip:
 
 def _ydl_opts(extra: Optional[dict] = None) -> dict:
     opts = {"quiet": True, "no_warnings": True, "noprogress": True, "noplaylist": True}
-    if ffmpeg_dir():
-        opts["ffmpeg_location"] = ffmpeg_dir()
+    if ffmpeg_path():
+        opts["ffmpeg_location"] = ffmpeg_path()
     if extra:
         opts.update(extra)
     return opts

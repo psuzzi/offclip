@@ -3,6 +3,10 @@ import sys
 
 
 def main() -> None:
+    if sys.argv[1:] == ["--selftest"]:
+        from .gui import selftest
+        selftest()
+        return
     if len(sys.argv) > 1:
         from .cli import main as cli_main
         sys.exit(cli_main(sys.argv[1:]))

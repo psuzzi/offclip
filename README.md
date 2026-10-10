@@ -4,9 +4,10 @@ Save public audio and video clips for personal, offline listening and viewing.
 
 offclip is a small window (and a command line) around [yt-dlp](https://github.com/yt-dlp/yt-dlp):
 paste up to 10 links, tick **MP3** and/or **MP4** with the quality you want, choose a folder, press
-**Download**. The only thing you install yourself is **Python**. Everything else (yt-dlp, ffmpeg) is
-fetched automatically into a private `.venv` folder next to the program on the first run, and
-yt-dlp is kept up to date on every start.
+**Download**. There is nothing to install by hand: on the first start offclip looks for what it
+needs on your computer (Python with Tkinter, ffmpeg), uses what it finds, and fetches a private copy
+of whatever is missing, telling you what and why. yt-dlp is refreshed once a day, and offclip tells
+you when a new version of itself is available.
 
 ## Download
 
@@ -15,10 +16,16 @@ unzip it anywhere, then start the launcher for your OS (see *Install*). The only
 
 ## Requirements
 
-- Python **3.9 or newer** with Tkinter (the python.org installers for Windows and macOS include it;
-  on Linux it is a separate package, see below).
-- Internet access on the first run (about 100 MB: yt-dlp, pip packages and a static ffmpeg build).
-- Windows 10/11, macOS 12 or newer, or a Linux desktop (tested targets: Ubuntu, Fedora, RHEL).
+- Windows 10/11, macOS 12 or newer, or a Linux desktop (Ubuntu, Fedora, RHEL and the like).
+- Internet access on the first start. How much is downloaded depends on what you already have:
+
+  | already on your computer | downloaded on first start |
+  |---|---|
+  | Python 3.9+ with Tkinter, and ffmpeg | about 3 MB (yt-dlp) |
+  | Python with Tkinter, no ffmpeg | about 25–35 MB |
+  | nothing | about 50–65 MB (a private Python 3.12 plus the above) |
+
+  Everything lands in one per-user folder (see *Where things go*); nothing is installed system-wide.
 
 ## Install
 
@@ -28,26 +35,36 @@ unzip it anywhere, then start the launcher for your OS (see *Install*). The only
 
 ### Windows
 
-- Python: <https://www.python.org/downloads/windows/>. In the installer tick **"Add python.exe to PATH"**.
 - Double-click **`run.bat`**. The first time, Windows may show *"Open File - Security Warning"*
-  because the file came from the internet: choose *Run*.
+  because the file came from the internet: choose *Run*. A console shows the setup lines, then the window opens.
 - Command line: `run.bat --help`.
 
 ### macOS
 
-- Python: <https://www.python.org/downloads/macos/> (this build includes Tkinter; the Homebrew one
-  needs `brew install python-tk` in addition).
 - Double-click **`run.command`**. If macOS refuses to open it the first time, right-click the file,
   choose *Open*, and confirm once. A Terminal window stays open while offclip runs: that is normal.
 - Command line: `./run.sh --help`.
 
 ### Linux (Ubuntu / Debian, Fedora / RHEL)
 
-- One-time system packages, either `./setup-linux.sh` (uses apt or dnf, asks for sudo) or by hand:
-  - Ubuntu / Debian: `sudo apt install python3 python3-venv python3-tk`
-  - Fedora / RHEL 9: `sudo dnf install python3 python3-tkinter`
-  - RHEL 8: `sudo dnf install python3.11 python3.11-tkinter`
-- Then **`./run.sh`**. Command line: `./run.sh --help`.
+- **`./run.sh`**. Command line: `./run.sh --help`.
+- Optional: `./setup-linux.sh` installs the distribution's own Python, Tkinter and ffmpeg with apt or dnf
+  (asks for sudo), so offclip downloads almost nothing. Without it, offclip fetches private copies into
+  your home folder instead. Either way works.
+
+### What the first start prints
+
+```
+offclip setup
+  [ok] Python 3.12.3 with Tkinter: /usr/bin/python3
+  [++] Creating the Python environment in ~/.local/share/offclip/venv
+  [ok] ffmpeg: /usr/bin/ffmpeg (already on this computer)
+  [++] Installing yt-dlp (about 3 MB)
+  [ok] ready
+```
+
+When something is missing, the `[++]` line says what is being fetched and the line below says why,
+for example `because: Python 3.12.1 at /usr/local/bin/python3 has no Tkinter`.
 
 ## Using the window
 
@@ -57,7 +74,9 @@ unzip it anywhere, then start the launcher for your OS (see *Install*). The only
   lists only show qualities that exist for that video.
 - *Choose folder…* sets where files go (remembered between runs; default is your Downloads folder).
 - *Download* saves every ticked row, one after the other. The *Status* column shows progress.
-- **?** shows the component versions and opens the issue tracker.
+- **?** opens a small menu: check for updates, report a problem, about (component versions).
+- When a newer offclip is published, a bar appears under the title: *Update now* fetches it, verifies it
+  and restarts; *Later* hides the bar until next time.
 
 ## Command line
 
@@ -72,23 +91,34 @@ unzip it anywhere, then start the launcher for your OS (see *Install*). The only
 
 On Windows use `run.bat` instead of `./run.sh`. Files are named `Title [videoid].mp3` / `.mp4`.
 
+## Where things go
+
+| | program (what you unzipped) | per-user data |
+|---|---|---|
+| Windows | wherever you unzipped it | `%LOCALAPPDATA%\offclip` |
+| macOS | wherever you unzipped it | `~/Library/Application Support/offclip` |
+| Linux | wherever you unzipped it | `~/.local/share/offclip` |
+
+The data folder holds the private Python (only if one was needed), the `venv` with yt-dlp and ffmpeg,
+updated versions of offclip under `app/`, `settings.json` and `offclip.log`. Downloads go wherever you choose.
+
 ## Updating, moving, removing
 
-- **yt-dlp** updates itself every time offclip starts. If downloads stop working, simply start
-  offclip again: sites change often, and a stale yt-dlp is the usual cause.
-- **offclip** itself: download the new release ZIP and unzip over the old folder (or `git pull`). Your
-  `.venv`, `settings.json` and downloads are untouched.
-- **Move** the folder anywhere; nothing is installed outside it.
-- **Remove** it by deleting the folder. Nothing else is left on the system.
+- **yt-dlp** is refreshed once a day when offclip starts. If downloads stop working, start offclip
+  again the next day or delete `state.json` in the data folder: sites change often, and a stale yt-dlp is the usual cause.
+- **offclip** tells you in the window when a new version exists and updates itself on request. You can
+  also just unzip a new release over the old folder.
+- **Move** the program folder anywhere.
+- **Remove** offclip by deleting the program folder and the data folder above. Nothing else is left.
 
 ## Troubleshooting
 
 | symptom | what to do |
 |---|---|
-| "offclip needs Python 3.9 or newer" | install Python from python.org (Windows/macOS) or with apt/dnf (Linux), then start again |
-| "The window needs Tkinter" | Linux: `python3-tk` (apt) or `python3-tkinter` (dnf); Homebrew macOS: `brew install python-tk`; then delete `.venv` and start again |
-| a download fails with an odd error | start offclip again (updates yt-dlp); if it persists, open an issue with the link and `--version` output |
-| first run stops half-way | check the internet connection, delete the `.venv` folder, start again |
+| the first start fails while downloading | check the internet connection and start again; partial downloads are discarded |
+| "the private Python does not start" (Linux) | you are on a system without a desktop; Tkinter needs the X11 libraries. Use `./setup-linux.sh` or the command line only |
+| a download fails with an odd error | start offclip again (it refreshes yt-dlp once a day); if it persists, open an issue with the link and `--version` output |
+| something is broken after an update | delete the data folder (see *Where things go*) and start again: it is rebuilt from scratch |
 | macOS or Windows refuses to open the launcher | see the per-OS notes above; it is the standard warning for files downloaded from the internet |
 
 Problems or ideas: <https://github.com/psuzzi/offclip/issues>. Please include the output of
@@ -97,9 +127,9 @@ Problems or ideas: <https://github.com/psuzzi/offclip/issues>. Please include th
 ## Privacy
 
 offclip has no accounts, no telemetry and no analytics. It connects only to the site you are
-downloading from, to PyPI (to update yt-dlp) and to GitHub (once, to fetch ffmpeg). The only
-files it writes outside your chosen download folder are `.venv/`, `settings.json` and
-`offclip.log` inside its own folder.
+downloading from, to PyPI (yt-dlp and, if needed, ffmpeg), and to GitHub (to fetch a private Python
+if needed, and once a day to ask whether a newer offclip exists). Set `"check_updates": false` in
+`settings.json` to stop the latter. Outside your chosen download folder it writes only to its data folder.
 
 ## Please note
 
@@ -109,10 +139,10 @@ It does not and will not circumvent DRM or access paid or private content. Respe
 and the terms of service of the sites you use. The software is provided as is, without warranty,
 and the author takes no responsibility for how it is used.
 
-offclip is not affiliated with YouTube or Google. It builds on
-[yt-dlp](https://github.com/yt-dlp/yt-dlp) (Unlicense) and
-[static-ffmpeg](https://github.com/zackees/static_ffmpeg) (which fetches [FFmpeg](https://ffmpeg.org/),
-LGPL/GPL); both are downloaded at first run and are not part of this repository.
+offclip is not affiliated with YouTube or Google. It builds on [yt-dlp](https://github.com/yt-dlp/yt-dlp)
+(Unlicense), [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg) (BSD, bundling [FFmpeg](https://ffmpeg.org/),
+LGPL/GPL) and, when no suitable Python exists, [python-build-standalone](https://github.com/astral-sh/python-build-standalone)
+(PSF licence). All are downloaded on first start as needed and are not part of this repository.
 
 ## License
 

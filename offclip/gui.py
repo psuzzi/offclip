@@ -94,18 +94,37 @@ class App(tk.Tk):
         self.outdir = self.settings.get("outdir") or core.default_outdir()
         self.rows: List[Row] = []
         self.busy = False
-        self.lines: List[str] = []                     # in-memory log for a future report dialog
+        self.lines: List[str] = []                     # in-memory log for the report dialog
         self._build()
+        self.after(1500, lambda: self.check_updates(auto=True))
 
     # -- layout --------------------------------------------------------------
     def _build(self) -> None:
         top = ttk.Frame(self, padding=(12, 12, 12, 4))
         top.pack(fill="x")
         ttk.Label(top, text="Download from YouTube", font=("", 16, "bold")).pack(side="left")
-        ttk.Button(top, text="?", width=3, command=self.help).pack(side="right")
+        menu_btn = ttk.Menubutton(top, text="?", width=3)
+        menu = tk.Menu(menu_btn, tearoff=False)
+        menu.add_command(label="Check for updates…", command=self.check_updates)
+        menu.add_command(label="Report a problem…", command=self.report_problem)
+        menu.add_separator()
+        menu.add_command(label="About offclip", command=self.help)
+        menu_btn["menu"] = menu
+        menu_btn.pack(side="right")
+
+        # update bar: hidden until a newer release is found
+        self.upd = ttk.Frame(self, padding=(12, 2, 12, 6))
+        self.upd_lbl = ttk.Label(self.upd, text="")
+        self.upd_lbl.pack(side="left")
+        self.upd_btn = ttk.Button(self.upd, text="Update now", command=self.do_update)
+        self.upd_btn.pack(side="left", padx=(10, 4))
+        ttk.Button(self.upd, text="What's new", command=lambda: self.release and webbrowser.open(self.release.page)).pack(side="left", padx=4)
+        ttk.Button(self.upd, text="Later", command=self.upd.pack_forget).pack(side="left", padx=4)
+        self.release = None
 
         add = ttk.Frame(self, padding=(12, 4, 12, 8))
         add.pack(fill="x")
+        self.add_frame = add
         self.url_var = tk.StringVar()
         entry = ttk.Entry(add, textvariable=self.url_var)
         entry.pack(side="left", fill="x", expand=True)
@@ -213,8 +232,59 @@ class App(tk.Tk):
 
     def help(self) -> None:
         v = "\n".join(f"{k}: {val}" for k, val in core.versions().items())
-        if messagebox.askyesno("offclip", f"{v}\n\nReport a problem or an idea?\nThis opens the issue tracker in your browser."):
+        messagebox.showinfo("About offclip", f"offclip {__version__}\nSave public clips for personal offline use.\n\n{v}")
+
+    def report_problem(self) -> None:
+        if messagebox.askyesno("Report a problem", "This opens the issue tracker in your browser.\n"
+                               "Please include the link that failed and the versions shown under About."):
             webbrowser.open(ISSUES_URL)
+
+    # -- self-update -----------------------------------------------------------
+    def check_updates(self, auto: bool = False) -> None:
+        def work():
+            try:
+                from . import update
+                rel = update.check(force=not auto)
+            except Exception as e:
+                rel = None
+                self.log(f"update check failed: {e}")
+            self.after(0, self._update_result, rel, auto)
+        threading.Thread(target=work, daemon=True).start()
+
+    def _update_result(self, rel, auto: bool) -> None:
+        if rel is None:
+            if not auto:
+                messagebox.showinfo("offclip", f"You have the latest version ({__version__}).")
+            return
+        self.release = rel
+        self.upd_lbl.config(text=f"offclip {rel.version} is available (you have {__version__}).")
+        self.upd_btn.config(state="normal")
+        self.upd.pack(fill="x", before=self.add_frame)
+
+    def do_update(self) -> None:
+        if not self.release or self.busy:
+            return
+        self.upd_btn.config(state="disabled")
+
+        def work():
+            from . import update
+            try:
+                update.apply(self.release, progress=lambda s: self.after(0, self.upd_lbl.config, {"text": f"Updating… {s}"}))
+                self.after(0, self._update_done)
+            except Exception as e:
+                self.log(f"update failed: {e}")
+                self.after(0, self.upd_lbl.config, {"text": f"Update failed: {str(e)[:120]}"})
+                self.after(0, self.upd_btn.config, {"state": "normal"})
+        threading.Thread(target=work, daemon=True).start()
+
+    def _update_done(self) -> None:
+        from . import update
+        self.log(f"updated to {self.release.version}")
+        if update.relaunch():
+            messagebox.showinfo("offclip", f"Updated to {self.release.version}. offclip will now restart.")
+            self.destroy()
+        else:
+            messagebox.showinfo("offclip", f"Updated to {self.release.version}. Please close and start offclip again.")
 
     def log(self, line: str) -> None:
         self.lines.append(line)
@@ -223,6 +293,21 @@ class App(tk.Tk):
                 f.write(line + "\n")
         except OSError:
             pass
+
+
+def selftest() -> None:
+    """Open the window, fill one fake row, close after a second. Used by CI."""
+    app = App()
+    row = Row(app, 0, "https://youtu.be/aqz-KE-bpKQ")
+    app.rows.append(row)
+    row.fill(core.Clip(url="u", id="aqz-KE-bpKQ", title="Big Buck Bunny", channel="Blender",
+                       short_url="https://youtu.be/aqz-KE-bpKQ", video_heights=[1080, 720], audio_kbps=[129, 66]))
+    app.update()
+    assert row.mp3_q["values"] and row.mp4_q["values"], "quality lists empty"
+    assert app.dl_btn["state"] != "disabled", "download button should be enabled"
+    app.after(1000, app.destroy)
+    app.mainloop()
+    print("selftest ok:", core.versions())
 
 
 def main() -> None:

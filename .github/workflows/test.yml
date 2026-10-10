@@ -1,0 +1,75 @@
+name: test
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  # A machine that already has a Python with Tkinter: the bootstrap must use it and download only yt-dlp (+ ffmpeg).
+  system-python:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Linux desktop bits
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+      - name: version (unix)
+        if: runner.os != 'Windows'
+        run: ./run.sh --version
+      - name: version (windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: run.bat --version
+      - name: window selftest (linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a ./run.sh --selftest
+      - name: window selftest (macos)
+        if: runner.os == 'macOS'
+        run: ./run.sh --selftest
+      - name: window selftest (windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: run.bat --selftest
+      - name: probe a public video (may be blocked for cloud IPs)
+        if: runner.os != 'Windows'
+        continue-on-error: true
+        run: ./run.sh --info "https://youtu.be/aqz-KE-bpKQ"
+
+  # A machine with no usable Python: the bootstrap must fetch a private one, verify it, and still open the window.
+  private-python:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      OFFCLIP_FORCE_PRIVATE_PYTHON: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Linux desktop bits
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+      - name: version (unix)
+        if: runner.os != 'Windows'
+        run: ./run.sh --version
+      - name: version (windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: run.bat --version
+      - name: window selftest (linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a ./run.sh --selftest
+      - name: window selftest (macos)
+        if: runner.os == 'macOS'
+        run: ./run.sh --selftest
+      - name: window selftest (windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: run.bat --selftest
+      - name: second start is quiet and fast (unix)
+        if: runner.os != 'Windows'
+        run: time ./run.sh --version
