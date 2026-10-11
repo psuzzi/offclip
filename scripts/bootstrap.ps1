@@ -44,6 +44,8 @@ if ($env:OFFCLIP_FORCE_PRIVATE_PYTHON -ne "1") {
   }
 } else {
   $Reason = if ($env:OFFCLIP_FORCE_REASON) { $env:OFFCLIP_FORCE_REASON } else { "a private Python was requested" }
+  $priv = Join-Path $Data "python\python.exe"
+  if ((Test-Path $priv) -and (Usable $priv)) { $Py = $priv }   # already fetched earlier: reuse it
 }
 
 if ($Py) {

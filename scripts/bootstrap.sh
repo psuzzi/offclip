@@ -49,6 +49,7 @@ if [ "${OFFCLIP_FORCE_PRIVATE_PYTHON:-0}" != "1" ]; then
   done
 else
   REASON="${OFFCLIP_FORCE_REASON:-a private Python was requested}"
+  if usable "$DATA/python/bin/python3"; then PY="$DATA/python/bin/python3"; fi   # already fetched earlier: reuse it
 fi
 
 if [ -n "$PY" ]; then
