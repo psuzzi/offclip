@@ -133,23 +133,72 @@ class App(tk.Tk):
         self.add_btn = ttk.Button(add, text="Add link", command=self.add_url)
         self.add_btn.pack(side="left", padx=(8, 0))
 
-        bottom = ttk.Frame(self, padding=12)
-        bottom.pack(fill="x", side="bottom")
-        for c in range(3):
-            bottom.columnconfigure(c, weight=1, uniform="b")
-        self.folder_lbl = ttk.Label(bottom, text="", foreground="gray")
-        self.folder_lbl.grid(row=0, column=0, sticky="w")
-        self.dl_btn = ttk.Button(bottom, text="Download", command=self.start_download, state="disabled")
-        self.dl_btn.grid(row=0, column=1)
-        ttk.Button(bottom, text="Choose folder…", command=self.choose_folder).grid(row=0, column=2, sticky="e")
+        # bottom, from the bottom up: Download alone and centred; above it, Choose folder… then the path
+        dl_row = ttk.Frame(self, padding=(12, 6, 12, 12))
+        dl_row.pack(side="bottom", fill="x")
+        self.dl_btn = ttk.Button(dl_row, text="Download", command=self.start_download, state="disabled")
+        self.dl_btn.pack()
+        folder_row = ttk.Frame(self, padding=(12, 6))
+        folder_row.pack(side="bottom", fill="x")
+        ttk.Button(folder_row, text="Choose folder…", command=self.choose_folder).pack(side="left")
+        self.folder_lbl = ttk.Label(folder_row, text="", foreground="gray")
+        self.folder_lbl.pack(side="left", padx=(10, 0))
         self._show_folder()
 
-        self.table = ttk.Frame(self, padding=(12, 0))
+        # the table: a visible box with headers, an empty-state hint, and drag-and-drop of links
+        box = tk.Frame(self, bd=1, relief="solid")
+        box.pack(fill="both", expand=True, padx=12, pady=(0, 4))
+        self.table = ttk.Frame(box, padding=(8, 6))
         self.table.pack(fill="both", expand=True)
         for c, h in enumerate(["MP4", "Quality", "MP3", "Quality", "Link", "Title", "Channel", "Status", ""]):
             ttk.Label(self.table, text=h, font=("", 10, "bold")).grid(row=0, column=c, sticky="w", padx=4, pady=(0, 6))
         self.table.columnconfigure(5, weight=3)
         self.table.columnconfigure(6, weight=1)
+        self.hint = ttk.Label(self.table, text="", foreground="gray")
+        self._setup_dnd(box)
+        self._refresh_hint()
+
+    # -- drag and drop -----------------------------------------------------------
+    def _setup_dnd(self, box: tk.Widget) -> None:
+        """Accept links dropped from a browser onto the table. Needs the tkinterdnd2 package; optional."""
+        self.dnd_ok = False
+        try:
+            from tkinterdnd2 import DND_ALL, TkinterDnD  # type: ignore
+            TkinterDnD._require(self)                      # loads the tkdnd Tcl extension into this window
+            wrapper = TkinterDnD.DnDWrapper
+            for w in (box, self.table):
+                wrapper.drop_target_register(w, DND_ALL)
+                wrapper.dnd_bind(w, "<<Drop>>", self._on_drop)
+            self.dnd_ok = True
+        except Exception as e:                             # no package, or no tkdnd build for this Tk: paste still works
+            self.log(f"drag and drop unavailable: {e}")
+
+    def _on_drop(self, event) -> None:
+        for url in self._urls_in(str(event.data)):
+            self.url_var.set(url)
+            self.add_url()
+
+    def _urls_in(self, data: str) -> List[str]:
+        """URLs out of whatever the drag source handed over (Tcl list, uri-list, 'url\ntitle', …)."""
+        try:
+            items = list(self.tk.splitlist(data))
+        except Exception:
+            items = [data]
+        urls: List[str] = []
+        for item in items:
+            for tok in item.replace("\r", "\n").split():
+                tok = tok.strip("<>\"'")
+                if tok.startswith(("http://", "https://")) and tok not in urls:
+                    urls.append(tok)
+        return urls
+
+    def _refresh_hint(self) -> None:
+        if self.rows:
+            self.hint.grid_remove()
+            return
+        self.hint.config(text="Drop links here, or paste one above and press Enter" if self.dnd_ok
+                         else "Paste a link above and press Enter")
+        self.hint.grid(row=1, column=0, columnspan=9, sticky="w", padx=4, pady=14)
 
     # -- actions -------------------------------------------------------------
     def add_url(self) -> None:
@@ -163,6 +212,8 @@ class App(tk.Tk):
             self.url_var.set("")
             return
         self.url_var.set("")
+        if not self.rows:
+            self.hint.grid_remove()
         row = Row(self, len(self.rows), url)
         self.rows.append(row)
         self.refresh_buttons()
@@ -182,6 +233,7 @@ class App(tk.Tk):
         self.rows.remove(row)
         for i, r in enumerate(self.rows):
             r.regrid(i)
+        self._refresh_hint()
         self.refresh_buttons()
 
     def choose_folder(self) -> None:
@@ -298,8 +350,10 @@ class App(tk.Tk):
 def selftest() -> None:
     """Open the window, fill one fake row, close after a second. Used by CI."""
     app = App()
+    app.hint.grid_remove()
     row = Row(app, 0, "https://youtu.be/aqz-KE-bpKQ")
     app.rows.append(row)
+    assert app._urls_in("{https://youtu.be/aqz-KE-bpKQ} https://example.com/x\nTitle") == ["https://youtu.be/aqz-KE-bpKQ", "https://example.com/x"]
     row.fill(core.Clip(url="u", id="aqz-KE-bpKQ", title="Big Buck Bunny", channel="Blender",
                        short_url="https://youtu.be/aqz-KE-bpKQ", video_heights=[1080, 720], audio_kbps=[129, 66]))
     app.update()
@@ -307,7 +361,7 @@ def selftest() -> None:
     assert app.dl_btn["state"] != "disabled", "download button should be enabled"
     app.after(1000, app.destroy)
     app.mainloop()
-    print("selftest ok:", core.versions())
+    print("selftest ok:", core.versions(), "| drag and drop:", "yes" if app.dnd_ok else "no")
 
 
 def main() -> None:
