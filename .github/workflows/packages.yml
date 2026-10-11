@@ -49,14 +49,14 @@ jobs:
           docker run --rm -v "$PWD/dist:/dist" -e OFFCLIP_NO_SPLASH=1 ubuntu:24.04 bash -euxc '
             export DEBIAN_FRONTEND=noninteractive
             apt-get update -q
-            apt-get install -y -q /dist/offclip_*_all.deb xvfb
+            apt-get install -y -q /dist/offclip-*.deb xvfb
             offclip --version
             xvfb-run -a offclip --selftest
             ls ~/.local/share/offclip'
       - name: install and run on Fedora 41
         run: |
           docker run --rm -v "$PWD/dist:/dist" -e OFFCLIP_NO_SPLASH=1 fedora:41 bash -euxc '
-            dnf install -y -q /dist/offclip-*.noarch.rpm xorg-x11-server-Xvfb
+            dnf install -y -q /dist/offclip-*.rpm xorg-x11-server-Xvfb
             offclip --version
             xvfb-run -a offclip --selftest
             ls ~/.local/share/offclip'

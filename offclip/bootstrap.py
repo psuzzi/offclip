@@ -192,17 +192,18 @@ def main(argv: Optional[List[str]] = None) -> int:
         _splash = None
 
     # --- 5. launch ---------------------------------------------------------------------------
-    env = dict(os.environ, OFFCLIP_APP=str(app), OFFCLIP_DATA=str(data), PYTHONPATH=str(app))
+    env = dict(os.environ, OFFCLIP_APP=str(app), OFFCLIP_DATA=str(data), PYTHONPATH=str(app),
+               PYTHONDONTWRITEBYTECODE="1")   # never write __pycache__ into the program folder
     if rest:                                               # command line / selftest: keep the console
-        return subprocess.call([str(vpy), "-m", "offclip", *rest], cwd=str(app), env=env)
+        return subprocess.call([str(vpy), "-B", "-m", "offclip", *rest], cwd=str(app), env=env)
     if WIN:                                                # window without a console
         pyw = venv / "Scripts" / "pythonw.exe"
         exe = pyw if pyw.exists() else vpy
-        subprocess.Popen([str(exe), "-m", "offclip"], cwd=str(app), env=env,
+        subprocess.Popen([str(exe), "-B", "-m", "offclip"], cwd=str(app), env=env,
                          creationflags=0x00000008 | 0x00000200, close_fds=True)   # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
         return 0
     os.chdir(str(app))
-    os.execve(str(vpy), [str(vpy), "-m", "offclip"], env)
+    os.execve(str(vpy), [str(vpy), "-B", "-m", "offclip"], env)
     return 0                                               # not reached
 
 

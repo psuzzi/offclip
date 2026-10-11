@@ -61,5 +61,10 @@ Name: "{autodesktop}\offclip"; Filename: "{app}\run.bat"; WorkingDir: "{app}"; I
 Filename: "{app}\run.bat"; Description: "Start offclip now (the first start fetches what it needs)"; Flags: postinstall nowait skipifsilent shellexec
 
 [UninstallDelete]
+; anything Python may have written next to the program, then the program folder itself
+Type: filesandordirs; Name: "{app}\offclip\__pycache__"
+Type: dirifempty; Name: "{app}\offclip"
+Type: dirifempty; Name: "{app}\scripts"
+Type: dirifempty; Name: "{app}"
 ; the per-user data folder: private Python, venv, updated versions, settings, log. Downloads are elsewhere.
 Type: filesandordirs; Name: "{localappdata}\offclip"

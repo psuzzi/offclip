@@ -10,8 +10,8 @@ VER="${TAG#v}"
 soon='<i>coming soon</i>'
 EXE=$soon; DEB=$soon; RPM=$soon
 [ "${HAVE_EXE:-0}" = 1 ] && EXE="<b><a href=\"$D/offclip-setup.exe\">offclip-setup.exe</a></b><br><sub>per-user install, no admin</sub>"
-[ "${HAVE_DEB:-0}" = 1 ] && DEB="<b><a href=\"$D/offclip_${VER}_all.deb\">offclip_${VER}_all.deb</a></b><br><sub>Ubuntu, Debian</sub>"
-[ "${HAVE_RPM:-0}" = 1 ] && RPM="<b><a href=\"$D/offclip-${VER}-1.noarch.rpm\">offclip-${VER}-1.noarch.rpm</a></b><br><sub>Fedora, RHEL</sub>"
+[ "${HAVE_DEB:-0}" = 1 ] && DEB="<b><a href=\"$D/offclip-${VER}.deb\">offclip-${VER}.deb</a></b><br><sub>Ubuntu, Debian</sub>"
+[ "${HAVE_RPM:-0}" = 1 ] && RPM="<b><a href=\"$D/offclip-${VER}.rpm\">offclip-${VER}.rpm</a></b><br><sub>Fedora, RHEL</sub>"
 cat <<HTML
 ## Download
 

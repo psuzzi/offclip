@@ -80,7 +80,7 @@ $env:OFFCLIP_LAUNCHER = $Launcher
 $env:PYTHONPATH = $App
 Set-Location $App
 $ErrorActionPreference = "Continue"
-& $Py -m offclip.bootstrap --app $App --data $Data -- @Rest
+& $Py -B -m offclip.bootstrap --app $App --data $Data -- @Rest
 $rc = $LASTEXITCODE
 if ($rc -eq 3 -and $env:OFFCLIP_FORCE_PRIVATE_PYTHON -ne "1") {
   $env:OFFCLIP_FORCE_PRIVATE_PYTHON = "1"

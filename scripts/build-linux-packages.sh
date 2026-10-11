@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Build offclip_<ver>_all.deb and offclip-<ver>-1.noarch.rpm from a git ref (a tag, or HEAD):
+# Build offclip-<ver>.deb and offclip-<ver>.rpm from a git ref (a tag, or HEAD):
+# (short file names on purpose; the metadata inside still says "all"/"noarch" and release 1)
 #   scripts/build-linux-packages.sh vX.Y.Z [outdir]      (needs dpkg-deb and rpmbuild)
 # The version is read from offclip/__init__.py of that ref.
 # Layout: /opt/offclip (app + launcher), /usr/bin/offclip, a .desktop entry and an icon.
@@ -67,8 +68,8 @@ Homepage: https://github.com/psuzzi/offclip
 Description: $SUMMARY
 $(printf '%s\n' "$DESC" | sed 's/^/ /')
 CONTROL
-dpkg-deb --build --root-owner-group "$D" "$OUT/offclip_${VER}_all.deb" >/dev/null
-echo "  built $OUT/offclip_${VER}_all.deb"
+dpkg-deb --build --root-owner-group "$D" "$OUT/offclip-${VER}.deb" >/dev/null
+echo "  built $OUT/offclip-${VER}.deb"
 
 # ---------------------------------------------------------------- .rpm
 RB="$WORK/rpmbuild"
@@ -102,5 +103,5 @@ cp -a %{_sourcedir}/root/. %{buildroot}/
 /usr/share/doc/offclip
 SPEC
 rpmbuild --quiet --define "_topdir $RB" -bb "$RB/SPECS/offclip.spec"
-cp "$RB/RPMS/noarch/offclip-$VER-1.noarch.rpm" "$OUT/"
-echo "  built $OUT/offclip-$VER-1.noarch.rpm"
+cp "$RB/RPMS/noarch/offclip-$VER-1.noarch.rpm" "$OUT/offclip-$VER.rpm"
+echo "  built $OUT/offclip-$VER.rpm"

@@ -78,7 +78,7 @@ cd "$APP"
 export OFFCLIP_LAUNCHER="$LAUNCHER"
 export PYTHONPATH="$APP"
 set +e
-"$PY" -m offclip.bootstrap --app "$APP" --data "$DATA" -- ${1+"$@"}
+"$PY" -B -m offclip.bootstrap --app "$APP" --data "$DATA" -- ${1+"$@"}
 rc=$?
 set -e
 if [ "$rc" = "3" ] && [ "${OFFCLIP_FORCE_PRIVATE_PYTHON:-0}" != "1" ]; then
