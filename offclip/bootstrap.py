@@ -26,8 +26,50 @@ WIN = os.name == "nt"
 DAY = 24 * 3600
 
 
+class Splash:
+    """A small window that mirrors the setup lines when there is no terminal to read them in
+    (desktop launchers on Linux, pythonw on Windows). Silently absent when Tk is unavailable."""
+
+    def __init__(self) -> None:
+        self.root = None
+        try:
+            import tkinter as tk
+            self.root = tk.Tk()
+            self.root.title("offclip setup")
+            self.root.geometry("640x220")
+            self.text = tk.Text(self.root, font=("Menlo", 11) if sys.platform == "darwin" else ("monospace", 10),
+                                relief="flat", padx=12, pady=10)
+            self.text.pack(fill="both", expand=True)
+            self.root.update()
+        except Exception:
+            self.root = None
+
+    def line(self, s: str) -> None:
+        if self.root is None:
+            return
+        try:
+            self.text.insert("end", s + "\n")
+            self.text.see("end")
+            self.root.update()
+        except Exception:
+            self.root = None
+
+    def close(self) -> None:
+        if self.root is not None:
+            try:
+                self.root.destroy()
+            except Exception:
+                pass
+            self.root = None
+
+
+_splash: Optional[Splash] = None
+
+
 def say(tag: str, msg: str) -> None:
     print(f"  [{tag}] {msg}", flush=True)
+    if _splash is not None:
+        _splash.line(f"[{tag}] {msg}")
 
 
 def load_json(p: Path) -> dict:
@@ -78,6 +120,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     installed = Path(args.app).resolve()
     data = Path(args.data).resolve()
     data.mkdir(parents=True, exist_ok=True)
+
+    global _splash
+    no_tty = sys.stdout is None or not sys.stdout.isatty()
+    if not rest and no_tty and not os.environ.get("OFFCLIP_NO_SPLASH"):
+        _splash = Splash()           # the window is requested and nobody can read the console: show the lines in a box
     app = choose_app(installed, data)
     if app != installed:
         say("ok", f"Using updated version {'.'.join(map(str, version_of(app)))} from {app}")
@@ -140,6 +187,9 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     state_file.write_text(json.dumps(state, indent=2), "utf-8")
     say("ok", "ready")
+    if _splash is not None:
+        _splash.close()
+        _splash = None
 
     # --- 5. launch ---------------------------------------------------------------------------
     env = dict(os.environ, OFFCLIP_APP=str(app), OFFCLIP_DATA=str(data), PYTHONPATH=str(app))
@@ -156,5 +206,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     return 0                                               # not reached
 
 
+def run() -> int:
+    try:
+        return main()
+    finally:
+        if _splash is not None:
+            _splash.close()
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(run())

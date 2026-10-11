@@ -1,0 +1,64 @@
+name: packages
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build (default: newest tag)"
+        required: false
+  push:
+    branches: [main]
+    paths:
+      - scripts/build-linux-packages.sh
+      - .github/workflows/packages.yml
+      - assets/icon.svg
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: tools
+        run: sudo apt-get update -q && sudo apt-get install -y -q rpm desktop-file-utils
+      - name: pick ref
+        id: tag
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          if [ -z "$TAG" ]; then
+            if [ "${{ github.event_name }}" = "push" ]; then TAG="${{ github.sha }}"; else TAG="$(git describe --tags --abbrev=0)"; fi
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "building $TAG"
+      - name: build .deb and .rpm
+        run: scripts/build-linux-packages.sh "${{ steps.tag.outputs.tag }}"
+      - name: inspect
+        run: |
+          ls -la dist
+          dpkg-deb --info dist/*.deb
+          dpkg-deb --contents dist/*.deb | awk '{print $1, $NF}'
+          rpm -qip dist/*.rpm
+          rpm -qlp dist/*.rpm
+          dpkg-deb --fsys-tarfile dist/*.deb | tar -xO ./usr/share/applications/offclip.desktop > /tmp/offclip.desktop
+          desktop-file-validate /tmp/offclip.desktop
+      - name: install and run on Ubuntu 24.04
+        run: |
+          docker run --rm -v "$PWD/dist:/dist" -e OFFCLIP_NO_SPLASH=1 ubuntu:24.04 bash -euxc '
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -q
+            apt-get install -y -q /dist/offclip_*_all.deb xvfb
+            offclip --version
+            xvfb-run -a offclip --selftest
+            ls ~/.local/share/offclip'
+      - name: install and run on Fedora 41
+        run: |
+          docker run --rm -v "$PWD/dist:/dist" -e OFFCLIP_NO_SPLASH=1 fedora:41 bash -euxc '
+            dnf install -y -q /dist/offclip-*.noarch.rpm xorg-x11-server-Xvfb
+            offclip --version
+            xvfb-run -a offclip --selftest
+            ls ~/.local/share/offclip'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-packages
+          path: dist/*
