@@ -16,18 +16,18 @@ you when a new version of itself is available.
 <table>
   <thead>
     <tr>
-      <th align="left" width="10%">Distro</th>
-      <th align="left" width="30%"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/windows.svg" height="18" align="absmiddle" alt=""> Windows</th>
-      <th align="left" colspan="2" width="30%"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/linux.svg" height="18" align="absmiddle" alt=""> Linux</th>
-      <th align="left" width="30%"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/macos.svg" height="18" align="absmiddle" alt=""> macOS</th>
+      <th align="left">Distro</th>
+      <th align="left"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/windows.svg" height="18" align="absmiddle" alt=""> Windows</th>
+      <th align="left" colspan="2"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/linux.svg" height="18" align="absmiddle" alt=""> Linux</th>
+      <th align="left"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/macos.svg" height="18" align="absmiddle" alt=""> macOS</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <td><b>Package</b><br><sub>install once</sub></td>
       <td><i>coming soon</i></td>
-      <td width="15%"><sub>DEB</sub><br><i>coming soon</i></td>
-      <td width="15%"><sub>RPM</sub><br><i>coming soon</i></td>
+      <td><sub>DEB</sub><br><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip_latest_all.deb">offclip_latest_all.deb</a></b><br><sub>Ubuntu, Debian</sub></td>
+      <td><sub>RPM</sub><br><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-latest-1.noarch.rpm">offclip-latest-1.noarch.rpm</a></b><br><sub>Fedora, RHEL</sub></td>
       <td><i>no DMG yet</i><br><sub>use the ZIP below</sub></td>
     </tr>
     <tr>

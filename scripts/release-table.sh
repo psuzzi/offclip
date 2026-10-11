@@ -18,18 +18,18 @@ cat <<HTML
 <table>
   <thead>
     <tr>
-      <th align="left" width="10%">Distro</th>
-      <th align="left" width="30%"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/windows.svg" height="18" align="absmiddle" alt=""> Windows</th>
-      <th align="left" colspan="2" width="30%"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/linux.svg" height="18" align="absmiddle" alt=""> Linux</th>
-      <th align="left" width="30%"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/macos.svg" height="18" align="absmiddle" alt=""> macOS</th>
+      <th align="left">Distro</th>
+      <th align="left"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/windows.svg" height="18" align="absmiddle" alt=""> Windows</th>
+      <th align="left" colspan="2"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/linux.svg" height="18" align="absmiddle" alt=""> Linux</th>
+      <th align="left"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/macos.svg" height="18" align="absmiddle" alt=""> macOS</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <td><b>Package</b><br><sub>install once</sub></td>
       <td>$EXE</td>
-      <td width="15%"><sub>DEB</sub><br>$DEB</td>
-      <td width="15%"><sub>RPM</sub><br>$RPM</td>
+      <td><sub>DEB</sub><br>$DEB</td>
+      <td><sub>RPM</sub><br>$RPM</td>
       <td><i>no DMG yet</i><br><sub>use the ZIP below</sub></td>
     </tr>
     <tr>
