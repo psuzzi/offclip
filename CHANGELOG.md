@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1 — 2026-10-11
+
+- Self-update test release: no functional change. The window title shows the running version.
+- Download table: per-OS links, icons, package row.
+
 ## 1.1.0 — 2026-10-11
 
 - Nothing to install by hand: the launcher looks for a Python with Tkinter and for ffmpeg, uses what it finds,
