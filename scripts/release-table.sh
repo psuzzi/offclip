@@ -26,17 +26,17 @@ cat <<HTML
   </thead>
   <tbody>
     <tr>
-      <td><b>ZIP</b><br><sub>unzip, double-click</sub></td>
-      <td><b><a href="$D/offclip-windows.zip">offclip-windows.zip</a></b><br><sub>then <code>run.bat</code></sub></td>
-      <td colspan="2"><b><a href="$D/offclip-linux.zip">offclip-linux.zip</a></b><br><sub>then <code>run.sh</code> (any distribution)</sub></td>
-      <td><b><a href="$D/offclip-macos.zip">offclip-macos.zip</a></b><br><sub>then <code>run.command</code></sub></td>
-    </tr>
-    <tr>
       <td><b>Package</b><br><sub>install once</sub></td>
       <td>$EXE</td>
       <td><sub>DEB</sub><br>$DEB</td>
       <td><sub>RPM</sub><br>$RPM</td>
       <td><sub>no DMG until the Apple developer fee (99 USD/year) is paid: use the ZIP</sub></td>
+    </tr>
+    <tr>
+      <td><b>ZIP</b><br><sub>unzip, double-click</sub></td>
+      <td><b><a href="$D/offclip-windows.zip">offclip-windows.zip</a></b><br><sub>then <code>run.bat</code></sub></td>
+      <td colspan="2"><b><a href="$D/offclip-linux.zip">offclip-linux.zip</a></b><br><sub>then <code>run.sh</code> (any distribution)</sub></td>
+      <td><b><a href="$D/offclip-macos.zip">offclip-macos.zip</a></b><br><sub>then <code>run.command</code></sub></td>
     </tr>
   </tbody>
 </table>

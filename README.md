@@ -22,17 +22,17 @@ you when a new version of itself is available.
   </thead>
   <tbody>
     <tr>
-      <td><b>ZIP</b><br><sub>unzip, double-click</sub></td>
-      <td><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-windows.zip">offclip-windows.zip</a></b><br><sub>then <code>run.bat</code></sub></td>
-      <td colspan="2"><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-linux.zip">offclip-linux.zip</a></b><br><sub>then <code>run.sh</code> (any distribution)</sub></td>
-      <td><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-macos.zip">offclip-macos.zip</a></b><br><sub>then <code>run.command</code></sub></td>
-    </tr>
-    <tr>
       <td><b>Package</b><br><sub>install once</sub></td>
       <td><i>coming soon</i></td>
       <td><sub>DEB</sub><br><i>coming soon</i></td>
       <td><sub>RPM</sub><br><i>coming soon</i></td>
       <td><sub>no DMG until the Apple developer fee (99 USD/year) is paid: use the ZIP</sub></td>
+    </tr>
+    <tr>
+      <td><b>ZIP</b><br><sub>unzip, double-click</sub></td>
+      <td><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-windows.zip">offclip-windows.zip</a></b><br><sub>then <code>run.bat</code></sub></td>
+      <td colspan="2"><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-linux.zip">offclip-linux.zip</a></b><br><sub>then <code>run.sh</code> (any distribution)</sub></td>
+      <td><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-macos.zip">offclip-macos.zip</a></b><br><sub>then <code>run.command</code></sub></td>
     </tr>
   </tbody>
 </table>
