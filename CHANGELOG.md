@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.5 — 2026-10-11
+
+- Menu bar of its own (File: Add link, Choose folder, Download; Help: Check for updates, Report a problem, About),
+  replacing Tk's default menu. The **?** button is gone; everything is in the menu.
+- The update notice is a light azure banner, clearly distinct from the window.
+
 ## 1.1.4 — 2026-10-11
 
 - Window layout: *Download* alone at the bottom; *Choose folder…* and the destination path on the row above.

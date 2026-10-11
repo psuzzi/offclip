@@ -1,6 +1,7 @@
 """Tkinter window: paste up to 10 links, tick MP4/MP3 with a quality each, pick a folder, download."""
 from __future__ import annotations
 
+import sys
 import threading
 import traceback
 import webbrowser
@@ -105,14 +106,7 @@ class App(tk.Tk):
         top = ttk.Frame(self, padding=(12, 12, 12, 4))
         top.pack(fill="x")
         ttk.Label(top, text="Download from YouTube", font=("", 16, "bold")).pack(side="left")
-        menu_btn = ttk.Menubutton(top, text="?", width=3)
-        menu = tk.Menu(menu_btn, tearoff=False)
-        menu.add_command(label="Check for updates…", command=self.check_updates)
-        menu.add_command(label="Report a problem…", command=self.report_problem)
-        menu.add_separator()
-        menu.add_command(label="About offclip", command=self.help)
-        menu_btn["menu"] = menu
-        menu_btn.pack(side="right")
+        self._build_menu()
 
         # update banner: hidden until a newer release is found; its own colour so it is not mistaken for the app
         self.upd = tk.Frame(self, bg=BANNER_BG, padx=12, pady=8)
@@ -132,6 +126,7 @@ class App(tk.Tk):
         entry.pack(side="left", fill="x", expand=True)
         entry.bind("<Return>", lambda _e: self.add_url())
         entry.focus_set()
+        self.url_entry = entry
         self.add_btn = ttk.Button(add, text="Add link", command=self.add_url)
         self.add_btn.pack(side="left", padx=(8, 0))
 
@@ -159,6 +154,40 @@ class App(tk.Tk):
         self.hint = ttk.Label(self.table, text="", foreground="gray")
         self._setup_dnd(box)
         self._refresh_hint()
+
+    def _build_menu(self) -> None:
+        """A minimal menu bar, replacing Tk's default one (which on macOS offers 'Run Widget Demo')."""
+        mac = sys.platform == "darwin"
+        bar = tk.Menu(self)
+        if mac:                                   # the application menu: About goes here, Quit is added by macOS
+            apple = tk.Menu(bar, name="apple", tearoff=False)
+            apple.add_command(label="About offclip", command=self.help)
+            apple.add_separator()
+            bar.add_cascade(menu=apple)
+        filem = tk.Menu(bar, tearoff=False)
+        filem.add_command(label="Add link", accelerator="Cmd+L" if mac else "Ctrl+L", command=self._focus_entry)
+        filem.add_command(label="Choose folder…", command=self.choose_folder)
+        filem.add_separator()
+        filem.add_command(label="Download", command=self.start_download)
+        if not mac:
+            filem.add_separator()
+            filem.add_command(label="Quit", accelerator="Ctrl+Q", command=self.destroy)
+        bar.add_cascade(label="File", menu=filem)
+        helpm = tk.Menu(bar, name="help" if mac else None, tearoff=False)
+        helpm.add_command(label="Check for updates…", command=self.check_updates)
+        helpm.add_command(label="Report a problem…", command=self.report_problem)
+        if not mac:
+            helpm.add_separator()
+            helpm.add_command(label="About offclip", command=self.help)
+        bar.add_cascade(label="Help", menu=helpm)
+        self.config(menu=bar)
+        self.bind_all("<Command-l>" if mac else "<Control-l>", lambda _e: self._focus_entry())
+        if not mac:
+            self.bind_all("<Control-q>", lambda _e: self.destroy())
+
+    def _focus_entry(self) -> None:
+        self.url_entry.focus_set()
+        self.url_entry.select_range(0, "end")
 
     # -- drag and drop -----------------------------------------------------------
     def _setup_dnd(self, box: tk.Widget) -> None:
