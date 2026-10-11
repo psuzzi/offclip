@@ -19,9 +19,9 @@ cat <<HTML
   <thead>
     <tr>
       <th align="left" width="10%">Distro</th>
-      <th align="left" width="30%"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/windows.svg" height="18" alt=""> Windows</th>
-      <th align="left" colspan="2" width="30%"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/linux.svg" height="18" alt=""> Linux</th>
-      <th align="left" width="30%"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/macos.svg" height="18" alt=""> macOS</th>
+      <th align="left" width="30%"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/windows.svg" height="18" align="absmiddle" alt=""> Windows</th>
+      <th align="left" colspan="2" width="30%"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/linux.svg" height="18" align="absmiddle" alt=""> Linux</th>
+      <th align="left" width="30%"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/macos.svg" height="18" align="absmiddle" alt=""> macOS</th>
     </tr>
   </thead>
   <tbody>
