@@ -19,9 +19,9 @@ cat <<HTML
   <thead>
     <tr>
       <th align="left" width="10%">Distro</th>
-      <th align="left" width="30%">Windows</th>
-      <th align="left" colspan="2" width="30%">Linux</th>
-      <th align="left" width="30%">macOS</th>
+      <th align="left" width="30%"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/windows.svg" height="18" alt=""> Windows</th>
+      <th align="left" colspan="2" width="30%"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/linux.svg" height="18" alt=""> Linux</th>
+      <th align="left" width="30%"><img src="https://raw.githubusercontent.com/psuzzi/offclip/main/assets/icons/macos.svg" height="18" alt=""> macOS</th>
     </tr>
   </thead>
   <tbody>
@@ -43,5 +43,6 @@ cat <<HTML
 
 Any processor (Intel, AMD, Apple Silicon, ARM): the launcher picks what fits. Nothing to install by hand: the
 first start finds or fetches Python and ffmpeg and tells you what it is doing. Checksums: [SHA256SUMS]($D/SHA256SUMS).
+<sub>Tux by Larry Ewing and The GIMP; other icons from Lucide (ISC).</sub>
 
 HTML
