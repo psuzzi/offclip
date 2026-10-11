@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.3 — 2026-10-11
+
+- **Windows installer** `offclip-setup.exe`: per-user install with no administrator rights, Start menu entry, optional
+  desktop icon, clean uninstall (removes the program and its data folder).
+- Linux packages renamed to `offclip-<version>.deb` and `offclip-<version>.rpm`; contents unchanged.
+- Nothing is written into the program folder any more (no bytecode caches), on any system.
+
 ## 1.1.2 — 2026-10-11
 
 - Linux packages: `.deb` for Ubuntu/Debian and `.rpm` for Fedora/RHEL, architecture-independent, with an
