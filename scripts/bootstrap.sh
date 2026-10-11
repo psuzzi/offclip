@@ -7,7 +7,10 @@ APP="$(cd "$(dirname "$0")/.." && pwd)"
 LAUNCHER="${OFFCLIP_LAUNCHER:-$APP/run.sh}"
 
 case "$(uname -s)" in
-  Darwin) DATA="${OFFCLIP_DATA:-$HOME/Library/Application Support/offclip}"; OS="apple-darwin" ;;
+  Darwin) DATA="${OFFCLIP_DATA:-$HOME/Library/Application Support/offclip}"; OS="apple-darwin"
+          # Once offclip has been started by the user (from Terminal, or after "Open Anyway"), drop the
+          # quarantine flag macOS put on the downloaded files, so double-clicking run.command works from now on.
+          xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true ;;
   Linux)  DATA="${OFFCLIP_DATA:-${XDG_DATA_HOME:-$HOME/.local/share}/offclip}"; OS="unknown-linux-gnu" ;;
   *) echo "offclip: unsupported system $(uname -s)"; exit 1 ;;
 esac

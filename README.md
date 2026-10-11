@@ -34,7 +34,7 @@ you when a new version of itself is available.
       <td><b>ZIP</b><br><sub>unzip, run</sub></td>
       <td><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-windows.zip">offclip-windows.zip</a></b><br><sub>then <code>run.bat</code></sub></td>
       <td colspan="2"><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-linux.zip">offclip-linux.zip</a></b><br><sub>then <code>run.sh</code> (any distro)</sub></td>
-      <td><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-macos.zip">offclip-macos.zip</a></b><br><sub>then <code>run.command</code></sub></td>
+      <td><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-macos.zip">offclip-macos.zip</a></b><br><sub>first time: <code>bash ~/Downloads/offclip/run.sh</code> in Terminal; then <code>run.command</code></sub></td>
     </tr>
   </tbody>
 </table>
@@ -72,11 +72,12 @@ All releases, with notes and checksums: <https://github.com/psuzzi/offclip/relea
 
 ### macOS
 
-- Double-click **`run.command`**. The first time, macOS says *"run.command" Not Opened* because the file
-  was downloaded and offclip is not notarized by Apple. Click **Done**, open **System Settings ▸ Privacy & Security**,
-  scroll down to *Security*, and click **Open Anyway** next to the message about run.command. Double-click the file
-  again and confirm. This happens once per download.
-- Terminal alternative, no prompts: `bash ~/Downloads/offclip/run.sh` (adjust the path to where you unzipped).
+- offclip is not notarized by Apple (yet), so the first double-click on `run.command` is blocked with
+  *"run.command" Not Opened*. Two ways past it, both once per download:
+  - **Terminal**: open Terminal and run `bash ~/Downloads/offclip/run.sh` (adjust the path to where you unzipped).
+    This starts offclip and also clears the block, so from then on you can double-click `run.command`.
+  - **Settings**: click *Done*, open **System Settings ▸ Privacy & Security**, scroll to *Security*, click
+    **Open Anyway**, then double-click `run.command` again and confirm.
 - A Terminal window stays open while offclip runs: that is normal. Command line: `./run.sh --help`.
 
 ### Linux (Ubuntu / Debian, Fedora / RHEL)
@@ -153,7 +154,7 @@ updated versions of offclip under `app/`, `settings.json` and `offclip.log`. Dow
 | "the private Python does not start" (Linux) | you are on a system without a desktop; Tkinter needs the X11 libraries. Use `./setup-linux.sh` or the command line only |
 | a download fails with an odd error | start offclip again (it refreshes yt-dlp once a day); if it persists, open an issue with the link and `--version` output |
 | something is broken after an update | delete the data folder (see *Where things go*) and start again: it is rebuilt from scratch |
-| macOS says *"run.command" Not Opened* | System Settings ▸ Privacy & Security ▸ *Open Anyway*, then double-click again (see the macOS notes above), or run `bash run.sh` from Terminal |
+| macOS says *"run.command" Not Opened* | run `bash ~/Downloads/offclip/run.sh` once from Terminal, or System Settings ▸ Privacy & Security ▸ *Open Anyway* (see the macOS notes above) |
 | Windows shows *Windows protected your PC* | *More info* ▸ *Run anyway*: the installer is not code-signed |
 
 Problems or ideas: <https://github.com/psuzzi/offclip/issues>. Please include the output of
