@@ -36,7 +36,7 @@ cat <<HTML
       <td><b>ZIP</b><br><sub>unzip, run</sub></td>
       <td><b><a href="$D/offclip-windows.zip">offclip-windows.zip</a></b><br><sub>then <code>run.bat</code></sub></td>
       <td colspan="2"><b><a href="$D/offclip-linux.zip">offclip-linux.zip</a></b><br><sub>then <code>run.sh</code> (any distro)</sub></td>
-      <td><b><a href="$D/offclip-macos.zip">offclip-macos.zip</a></b><br><sub>then <code>run.command</code></sub></td>
+      <td><b><a href="$D/offclip-macos.zip">offclip-macos.zip</a></b><br><sub>then <code>run.command</code>; first time: System Settings ▸ Privacy &amp; Security ▸ <i>Open Anyway</i></sub></td>
     </tr>
   </tbody>
 </table>

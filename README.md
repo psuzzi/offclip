@@ -72,9 +72,12 @@ All releases, with notes and checksums: <https://github.com/psuzzi/offclip/relea
 
 ### macOS
 
-- Double-click **`run.command`**. If macOS refuses to open it the first time, right-click the file,
-  choose *Open*, and confirm once. A Terminal window stays open while offclip runs: that is normal.
-- Command line: `./run.sh --help`.
+- Double-click **`run.command`**. The first time, macOS says *"run.command" Not Opened* because the file
+  was downloaded and offclip is not notarized by Apple. Click **Done**, open **System Settings ▸ Privacy & Security**,
+  scroll down to *Security*, and click **Open Anyway** next to the message about run.command. Double-click the file
+  again and confirm. This happens once per download.
+- Terminal alternative, no prompts: `bash ~/Downloads/offclip/run.sh` (adjust the path to where you unzipped).
+- A Terminal window stays open while offclip runs: that is normal. Command line: `./run.sh --help`.
 
 ### Linux (Ubuntu / Debian, Fedora / RHEL)
 
@@ -150,7 +153,8 @@ updated versions of offclip under `app/`, `settings.json` and `offclip.log`. Dow
 | "the private Python does not start" (Linux) | you are on a system without a desktop; Tkinter needs the X11 libraries. Use `./setup-linux.sh` or the command line only |
 | a download fails with an odd error | start offclip again (it refreshes yt-dlp once a day); if it persists, open an issue with the link and `--version` output |
 | something is broken after an update | delete the data folder (see *Where things go*) and start again: it is rebuilt from scratch |
-| macOS or Windows refuses to open the launcher | see the per-OS notes above; it is the standard warning for files downloaded from the internet |
+| macOS says *"run.command" Not Opened* | System Settings ▸ Privacy & Security ▸ *Open Anyway*, then double-click again (see the macOS notes above), or run `bash run.sh` from Terminal |
+| Windows shows *Windows protected your PC* | *More info* ▸ *Run anyway*: the installer is not code-signed |
 
 Problems or ideas: <https://github.com/psuzzi/offclip/issues>. Please include the output of
 `--version`, your OS, and the link that failed.
