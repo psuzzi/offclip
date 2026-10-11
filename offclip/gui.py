@@ -1,8 +1,24 @@
-"""Tkinter window: paste up to 10 links, tick MP4/MP3 with a quality each, pick a folder, download."""
+"""Tkinter window. Map of this module:
+
+  ColorButton   flat coloured one-letter button (the yellow "?" and the "i" top right)
+  Row           one pasted link: its widgets in the table, its probed metadata, its MP4/MP3 choices
+  App           the window
+    _build        layout, top to bottom: title + buttons, paste box, table box, folder row, Download
+    _build_menu   File / Help menu bar
+    _setup_dnd    drag-and-drop of links onto the table (optional tkinterdnd2)
+    add_url / remove / start_download / _download_all    the download flow (one at a time, background thread)
+    show_info     dialog: versions, update notice (azure band), Update now
+    report_problem dialog: description -> GitHub issue prefilled (relay comes later)
+    check_updates / do_update    talk to offclip.update
+  selftest      opens and closes the window; used by CI
+
+Colours and labels are constants at the top. Everything that talks to yt-dlp lives in core.py, not here.
+"""
 from __future__ import annotations
 
 import sys
 import threading
+import urllib.parse
 import traceback
 import webbrowser
 import tkinter as tk
@@ -13,8 +29,29 @@ from . import REPO, __version__, core
 
 ISSUES_URL = f"https://github.com/{REPO}/issues"
 LINK_COLOR = "#1a56db"
-BANNER_BG = "#dbeafe"     # light azure: the update notice must stand apart from the window, in light and dark mode
+BANNER_BG = "#dbeafe"     # light azure band for the update notice inside the info dialog
 BANNER_FG = "#1e3a8a"
+INFO_IDLE = ("#6b7280", "white")      # grey "i"
+INFO_UPDATE = ("#2563eb", "white")    # blue "i" when a newer version exists
+HELP_COLORS = ("#facc15", "#1f2937")  # yellow "?" with dark text
+
+
+class ColorButton(tk.Label):
+    """A flat, coloured, one-character button (ttk buttons cannot be coloured on macOS/Windows).
+
+    Change its look with set_colors((bg, fg)); that is all the update highlight does.
+    """
+
+    def __init__(self, parent, text: str, command, colors, tooltip: str = ""):
+        super().__init__(parent, text=text, font=("", 13, "bold"), width=2, padx=6, pady=2, cursor="hand2", relief="flat")
+        self.set_colors(colors)
+        self.bind("<Button-1>", lambda _e: command())
+        if tooltip:
+            self.bind("<Enter>", lambda _e: self.configure(relief="raised"))
+            self.bind("<Leave>", lambda _e: self.configure(relief="flat"))
+
+    def set_colors(self, colors) -> None:
+        self.configure(bg=colors[0], fg=colors[1], activebackground=colors[0])
 
 
 class Row:
@@ -107,16 +144,13 @@ class App(tk.Tk):
         top.pack(fill="x")
         ttk.Label(top, text="Download from YouTube", font=("", 16, "bold")).pack(side="left")
         self._build_menu()
-
-        # update banner: hidden until a newer release is found; its own colour so it is not mistaken for the app
-        self.upd = tk.Frame(self, bg=BANNER_BG, padx=12, pady=8)
-        self.upd_lbl = tk.Label(self.upd, text="", bg=BANNER_BG, fg=BANNER_FG, font=("", 12, "bold"))
-        self.upd_lbl.pack(side="left")
-        self.upd_btn = ttk.Button(self.upd, text="Update now", command=self.do_update)
-        self.upd_btn.pack(side="left", padx=(14, 4))
-        ttk.Button(self.upd, text="What's new", command=lambda: self.release and webbrowser.open(self.release.page)).pack(side="left", padx=4)
-        ttk.Button(self.upd, text="Later", command=self.upd.pack_forget).pack(side="left", padx=4)
+        self.info_btn = ColorButton(top, "i", self.show_info, INFO_IDLE, tooltip="Versions and updates")
+        self.info_btn.pack(side="right", padx=(6, 0))
+        self.help_btn = ColorButton(top, "?", self.report_problem, HELP_COLORS, tooltip="Report a problem")
+        self.help_btn.pack(side="right")
         self.release = None
+        self.update_text = tk.StringVar(value="")
+        self.info_win: Optional[tk.Toplevel] = None
 
         add = ttk.Frame(self, padding=(12, 4, 12, 8))
         add.pack(fill="x")
@@ -161,7 +195,7 @@ class App(tk.Tk):
         bar = tk.Menu(self)
         if mac:                                   # the application menu: About goes here, Quit is added by macOS
             apple = tk.Menu(bar, name="apple", tearoff=False)
-            apple.add_command(label="About offclip", command=self.help)
+            apple.add_command(label="About offclip", command=self.show_info)
             apple.add_separator()
             bar.add_cascade(menu=apple)
         filem = tk.Menu(bar, tearoff=False)
@@ -178,7 +212,7 @@ class App(tk.Tk):
         helpm.add_command(label="Report a problem…", command=self.report_problem)
         if not mac:
             helpm.add_separator()
-            helpm.add_command(label="About offclip", command=self.help)
+            helpm.add_command(label="About offclip", command=self.show_info)
         bar.add_cascade(label="Help", menu=helpm)
         self.config(menu=bar)
         self.bind_all("<Command-l>" if mac else "<Control-l>", lambda _e: self._focus_entry())
@@ -313,14 +347,80 @@ class App(tk.Tk):
         self.busy = False
         self.refresh_buttons()
 
-    def help(self) -> None:
-        v = "\n".join(f"{k}: {val}" for k, val in core.versions().items())
-        messagebox.showinfo("About offclip", f"offclip {__version__}\nSave public clips for personal offline use.\n\n{v}")
+    # -- info (versions + update) ----------------------------------------------
+    def help(self) -> None:          # kept for the menu
+        self.show_info()
 
+    def show_info(self) -> None:
+        if self.info_win is not None and self.info_win.winfo_exists():
+            self.info_win.lift()
+            return
+        w = tk.Toplevel(self)
+        w.title("offclip")
+        w.resizable(False, False)
+        w.transient(self)
+        self.info_win = w
+        body = ttk.Frame(w, padding=16)
+        body.pack(fill="both", expand=True)
+        ttk.Label(body, text=f"offclip {__version__}", font=("", 15, "bold")).pack(anchor="w")
+        ttk.Label(body, text="Save public clips for personal offline use.", foreground="gray").pack(anchor="w", pady=(0, 10))
+        mono = ("Menlo", 11) if sys.platform == "darwin" else ("Consolas", 10) if sys.platform == "win32" else ("monospace", 10)
+        report = "\n".join(f"{k:8} {v}" for k, v in core.versions().items())
+        txt = tk.Text(body, height=5, width=64, font=mono, relief="flat", wrap="none")
+        txt.insert("1.0", report)
+        txt.config(state="disabled")
+        txt.pack(anchor="w")
+
+        band = tk.Frame(body, bg=BANNER_BG, padx=12, pady=10)
+        band.pack(fill="x", pady=(12, 0))
+        self.update_lbl = tk.Label(band, textvariable=self.update_text, bg=BANNER_BG, fg=BANNER_FG, font=("", 12, "bold"), justify="left")
+        self.update_lbl.pack(side="left", fill="x", expand=True)
+        if self.release:
+            self.update_text.set(f"offclip {self.release.version} is available (you have {__version__}).")
+            self.update_btn = ttk.Button(band, text="Update now", command=self.do_update)
+            self.update_btn.pack(side="left", padx=(10, 4))
+            ttk.Button(band, text="What's new", command=lambda: webbrowser.open(self.release.page)).pack(side="left")
+        else:
+            if not self.update_text.get():
+                self.update_text.set("No update known yet." if not self.settings.get("last_update_check") else "You have the latest version.")
+            ttk.Button(band, text="Check for updates", command=lambda: self.check_updates(auto=False)).pack(side="left", padx=(10, 0))
+
+        foot = ttk.Frame(body)
+        foot.pack(fill="x", pady=(14, 0))
+        ttk.Button(foot, text="Report a problem…", command=self.report_problem).pack(side="left")
+        ttk.Button(foot, text="Close", command=w.destroy).pack(side="right")
+        w.bind("<Escape>", lambda _e: w.destroy())
+
+    # -- report a problem --------------------------------------------------------
     def report_problem(self) -> None:
-        if messagebox.askyesno("Report a problem", "This opens the issue tracker in your browser.\n"
-                               "Please include the link that failed and the versions shown under About."):
-            webbrowser.open(ISSUES_URL)
+        """Until the relay exists: a dialog that prepares a GitHub issue with the description and the context."""
+        w = tk.Toplevel(self)
+        w.title("Report a problem")
+        w.transient(self)
+        body = ttk.Frame(w, padding=16)
+        body.pack(fill="both", expand=True)
+        ttk.Label(body, text="What happened? A problem, an idea, a question.", font=("", 13, "bold")).pack(anchor="w")
+        ttk.Label(body, text="Your text, the component versions and the last lines of the log are included. Nothing else is sent.",
+                  foreground="gray", wraplength=520).pack(anchor="w", pady=(2, 8))
+        text = tk.Text(body, height=8, width=70, wrap="word")
+        text.pack(fill="both", expand=True)
+        text.focus_set()
+        foot = ttk.Frame(body)
+        foot.pack(fill="x", pady=(12, 0))
+        ttk.Button(foot, text="Cancel", command=w.destroy).pack(side="right")
+
+        def send():
+            desc = text.get("1.0", "end").strip()
+            title = (desc.splitlines() or ["Report from offclip"])[0][:80]
+            context = "\n".join(f"{k}: {v}" for k, v in core.versions().items())
+            tail = "\n".join(self.lines[-25:])
+            body_md = f"{desc}\n\n---\n```\n{context}\n```\n<details><summary>Last log lines</summary>\n\n```\n{tail}\n```\n</details>\n"
+            url = f"{ISSUES_URL}/new?" + urllib.parse.urlencode({"title": title, "body": body_md[:6000]})
+            webbrowser.open(url)
+            w.destroy()
+
+        ttk.Button(foot, text="Send (opens GitHub)", command=send).pack(side="right", padx=(0, 8))
+        w.bind("<Escape>", lambda _e: w.destroy())
 
     # -- self-update -----------------------------------------------------------
     def check_updates(self, auto: bool = False) -> None:
@@ -336,28 +436,35 @@ class App(tk.Tk):
 
     def _update_result(self, rel, auto: bool) -> None:
         if rel is None:
-            if not auto:
-                messagebox.showinfo("offclip", f"You have the latest version ({__version__}).")
+            self.update_text.set(f"You have the latest version ({__version__}).")
+            if not auto and (self.info_win is None or not self.info_win.winfo_exists()):
+                self.show_info()
             return
         self.release = rel
-        self.upd_lbl.config(text=f"offclip {rel.version} is available (you have {__version__}).")
-        self.upd_btn.config(state="normal")
-        self.upd.pack(fill="x", padx=12, pady=(0, 6), before=self.add_frame)
+        self.update_text.set(f"offclip {rel.version} is available (you have {__version__}).")
+        self.info_btn.set_colors(INFO_UPDATE)          # the "i" turns blue: that is the update notice
+        if not auto:
+            if self.info_win is not None and self.info_win.winfo_exists():
+                self.info_win.destroy()
+            self.show_info()
 
     def do_update(self) -> None:
         if not self.release or self.busy:
             return
-        self.upd_btn.config(state="disabled")
+        try:
+            self.update_btn.config(state="disabled")
+        except Exception:
+            pass
 
         def work():
             from . import update
             try:
-                update.apply(self.release, progress=lambda s: self.after(0, self.upd_lbl.config, {"text": f"Updating… {s}"}))
+                update.apply(self.release, progress=lambda st: self.after(0, self.update_text.set, f"Updating… {st}"))
                 self.after(0, self._update_done)
             except Exception as e:
                 self.log(f"update failed: {e}")
-                self.after(0, self.upd_lbl.config, {"text": f"Update failed: {str(e)[:120]}"})
-                self.after(0, self.upd_btn.config, {"state": "normal"})
+                self.after(0, self.update_text.set, f"Update failed: {str(e)[:120]}")
+                self.after(0, lambda: self.update_btn.config(state="normal"))
         threading.Thread(target=work, daemon=True).start()
 
     def _update_done(self) -> None:
@@ -390,6 +497,7 @@ def selftest() -> None:
     app.update()
     assert row.mp3_q["values"] and row.mp4_q["values"], "quality lists empty"
     assert app.dl_btn["state"] != "disabled", "download button should be enabled"
+    app.info_btn.set_colors(INFO_UPDATE); app.update()
     app.after(1000, app.destroy)
     app.mainloop()
     print("selftest ok:", core.versions(), "| drag and drop:", "yes" if app.dnd_ok else "no")

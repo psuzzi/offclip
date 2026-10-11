@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.7 — 2026-10-11
+
+- Two buttons top right: a yellow **?** to report a problem, and an **i** that shows the version report. The **i** turns
+  blue when a newer version exists; the update notice and *Update now* live in that dialog (the banner is gone).
+- *Report a problem* dialog: your description plus the component versions and the last log lines are put into a
+  prefilled GitHub issue in your browser. (Sending without a GitHub account comes with the relay, later.)
+- gui.py has a map at the top for whoever edits it next.
+
 ## 1.1.6 — 2026-10-11
 
 - Downloads retry by themselves on transient errors, up to three attempts with a fresh extraction and, on the last one,
