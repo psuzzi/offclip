@@ -18,7 +18,7 @@ cat <<HTML
 <table>
   <thead>
     <tr>
-      <th align="left" width="10%">Distribution</th>
+      <th align="left" width="10%">Distro</th>
       <th align="left" width="30%">🪟 Windows</th>
       <th align="left" colspan="2" width="30%">🐧 Linux</th>
       <th align="left" width="30%">🍎 macOS</th>
@@ -33,9 +33,9 @@ cat <<HTML
       <td><i>no DMG yet</i><br><sub>use the ZIP below</sub></td>
     </tr>
     <tr>
-      <td><b>ZIP</b><br><sub>unzip, double-click</sub></td>
+      <td><b>ZIP</b><br><sub>unzip, run</sub></td>
       <td><b><a href="$D/offclip-windows.zip">offclip-windows.zip</a></b><br><sub>then <code>run.bat</code></sub></td>
-      <td colspan="2"><b><a href="$D/offclip-linux.zip">offclip-linux.zip</a></b><br><sub>then <code>run.sh</code> (any distribution)</sub></td>
+      <td colspan="2"><b><a href="$D/offclip-linux.zip">offclip-linux.zip</a></b><br><sub>then <code>run.sh</code> (any distro)</sub></td>
       <td><b><a href="$D/offclip-macos.zip">offclip-macos.zip</a></b><br><sub>then <code>run.command</code></sub></td>
     </tr>
   </tbody>

@@ -16,7 +16,7 @@ you when a new version of itself is available.
 <table>
   <thead>
     <tr>
-      <th align="left" width="10%">Distribution</th>
+      <th align="left" width="10%">Distro</th>
       <th align="left" width="30%">🪟 Windows</th>
       <th align="left" colspan="2" width="30%">🐧 Linux</th>
       <th align="left" width="30%">🍎 macOS</th>
@@ -31,9 +31,9 @@ you when a new version of itself is available.
       <td><i>no DMG yet</i><br><sub>use the ZIP below</sub></td>
     </tr>
     <tr>
-      <td><b>ZIP</b><br><sub>unzip, double-click</sub></td>
+      <td><b>ZIP</b><br><sub>unzip, run</sub></td>
       <td><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-windows.zip">offclip-windows.zip</a></b><br><sub>then <code>run.bat</code></sub></td>
-      <td colspan="2"><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-linux.zip">offclip-linux.zip</a></b><br><sub>then <code>run.sh</code> (any distribution)</sub></td>
+      <td colspan="2"><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-linux.zip">offclip-linux.zip</a></b><br><sub>then <code>run.sh</code> (any distro)</sub></td>
       <td><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-macos.zip">offclip-macos.zip</a></b><br><sub>then <code>run.command</code></sub></td>
     </tr>
   </tbody>
