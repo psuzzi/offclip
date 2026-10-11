@@ -63,7 +63,7 @@ if ($Py) {
   if (-not $line) { throw "no checksum published for $PbsName" }
   $expected = ($line.Line -split "\s+")[0].ToLower()
   $actual = (Get-FileHash -Algorithm SHA256 -Path $Tar).Hash.ToLower()
-  if ($expected -ne $actual) { throw "checksum mismatch for $PbsName: refusing to use it" }
+  if ($expected -ne $actual) { throw "checksum mismatch for ${PbsName}: refusing to use it" }
   $Dest = Join-Path $Data "python"
   if (Test-Path $Dest) { Remove-Item -Recurse -Force $Dest }
   & tar -xzf $Tar -C $Data
