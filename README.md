@@ -1,5 +1,7 @@
 # offclip
 
+[![tests](https://github.com/psuzzi/offclip/actions/workflows/test.yml/badge.svg)](https://github.com/psuzzi/offclip/actions/workflows/test.yml)
+
 Save public audio and video clips for personal, offline listening and viewing.
 
 offclip is a small window (and a command line) around [yt-dlp](https://github.com/yt-dlp/yt-dlp):
