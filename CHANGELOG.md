@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.6 — 2026-10-11
+
+- Downloads retry by themselves on transient errors, up to three attempts with a fresh extraction and, on the last one,
+  a cleared yt-dlp cache. YouTube's intermittent *HTTP Error 403: Forbidden* on a new stream URL no longer ends in a red row.
+  Permanent errors (private video, removed video) still fail immediately.
+
 ## 1.1.5 — 2026-10-11
 
 - Menu bar of its own (File: Add link, Choose folder, Download; Help: Check for updates, Report a problem, About),

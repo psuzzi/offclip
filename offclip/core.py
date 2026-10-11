@@ -9,6 +9,7 @@ import os
 import platform
 import shutil
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, List, Optional
@@ -144,6 +145,14 @@ def probe(url: str) -> Clip:
 # ----------------------------------------------------------------------------- download
 
 Progress = Callable[[Optional[float], str], None]   # (fraction or None, human text)
+ATTEMPTS = 3
+_RETRYABLE = ("403", "Forbidden", "timed out", "Connection reset", "Remote end closed", "unable to download video data",
+              "HTTP Error 5", "Temporary failure", "fragment")
+
+
+def _retryable(e: Exception) -> bool:
+    msg = str(e)
+    return any(k in msg for k in _RETRYABLE)
 
 
 def download(clip: Clip, outdir: str, *, mp4_height: Optional[int] = None, mp3_kbps: Optional[int] = None,
@@ -173,11 +182,32 @@ def download(clip: Clip, outdir: str, *, mp4_height: Optional[int] = None, mp3_k
     }
 
     def run(opts: dict, suffix: str) -> None:
-        with yt_dlp.YoutubeDL(_ydl_opts(dict(base, **opts))) as ydl:
-            info = ydl.extract_info(clip.url, download=True)
-        reqs = info.get("requested_downloads") or []
-        path = Path(reqs[0]["filepath"]) if reqs and reqs[0].get("filepath") else Path(ydl.prepare_filename(info))
-        written.append(path.with_suffix(suffix) if not path.suffix == suffix else path)
+        # YouTube sometimes answers a brand-new stream URL with "HTTP Error 403: Forbidden" and serves the
+        # same video fine a moment later. Retry with a fresh extraction; on the second failure also drop
+        # yt-dlp's cache (a stale signature solver is the other classic cause).
+        last: Optional[Exception] = None
+        for attempt in range(1, ATTEMPTS + 1):
+            try:
+                with yt_dlp.YoutubeDL(_ydl_opts(dict(base, **opts))) as ydl:
+                    if attempt >= 3:
+                        try:
+                            ydl.cache.remove()
+                        except Exception:
+                            pass
+                    info = ydl.extract_info(clip.url, download=True)
+                    reqs = info.get("requested_downloads") or []
+                    path = Path(reqs[0]["filepath"]) if reqs and reqs[0].get("filepath") else Path(ydl.prepare_filename(info))
+                written.append(path.with_suffix(suffix) if not path.suffix == suffix else path)
+                return
+            except Exception as e:                       # yt-dlp raises DownloadError and friends
+                last = e
+                if attempt == ATTEMPTS or not _retryable(e):
+                    raise
+                if progress:
+                    progress(None, f"retrying ({attempt}/{ATTEMPTS - 1})…")
+                time.sleep(2 * attempt)
+        if last:
+            raise last
 
     if mp4_height:
         h = int(mp4_height)
