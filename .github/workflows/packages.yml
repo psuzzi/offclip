@@ -9,8 +9,10 @@ on:
     branches: [main]
     paths:
       - scripts/build-linux-packages.sh
+      - scripts/build-windows-installer.ps1
+      - installer/**
       - .github/workflows/packages.yml
-      - assets/icon.svg
+      - assets/**
 
 jobs:
   linux:
@@ -62,3 +64,48 @@ jobs:
         with:
           name: linux-packages
           path: dist/*
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: pick ref
+        id: tag
+        shell: bash
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          if [ -z "$TAG" ]; then
+            if [ "${{ github.event_name }}" = "push" ]; then TAG="${{ github.sha }}"; else TAG="$(git describe --tags --abbrev=0)"; fi
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "building $TAG"
+      - name: build offclip-setup.exe
+        shell: pwsh
+        run: scripts/build-windows-installer.ps1 -Ref "${{ steps.tag.outputs.tag }}"
+      - name: silent install, run, uninstall
+        shell: pwsh
+        env:
+          CI: "true"
+        run: |
+          $p = Start-Process -FilePath "dist\offclip-setup.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/CURRENTUSER","/NORESTART","/LOG=install.log" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content install.log | Select-Object -Last 30; throw "installer exit code $($p.ExitCode)" }
+          $app = Join-Path $env:LOCALAPPDATA "Programs\offclip"
+          Get-ChildItem $app
+          if (-not (Test-Path (Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\offclip\offclip.lnk"))) { throw "Start menu shortcut missing" }
+          cmd /c "`"$app\run.bat`" --version"
+          if ($LASTEXITCODE -ne 0) { throw "run.bat --version failed" }
+          cmd /c "`"$app\run.bat`" --selftest"
+          if ($LASTEXITCODE -ne 0) { throw "selftest failed" }
+          $u = Start-Process -FilePath (Join-Path $app "unins000.exe") -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -PassThru
+          if ($u.ExitCode -ne 0) { throw "uninstaller exit code $($u.ExitCode)" }
+          Start-Sleep -Seconds 3
+          if (Test-Path $app) { Get-ChildItem $app -Recurse | Select-Object FullName; throw "app folder still present after uninstall" }
+          if (Test-Path (Join-Path $env:LOCALAPPDATA "offclip")) { throw "data folder still present after uninstall" }
+          Write-Host "install / run / uninstall OK"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/offclip-setup.exe
