@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.4 — 2026-10-11
+
+- Window layout: *Download* alone at the bottom; *Choose folder…* and the destination path on the row above.
+- The table is a visible box from the start, with a hint when empty.
+- Drag and drop: links dragged from a browser onto the table are added, one row each (where the Tk drag-and-drop extension loads; pasting always works).
+- macOS: after a first start the launcher clears the quarantine flag, so double-clicking `run.command` works from then on.
+
 ## 1.1.3 — 2026-10-11
 
 - **Windows installer** `offclip-setup.exe`: per-user install with no administrator rights, Start menu entry, optional
