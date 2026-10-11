@@ -11,13 +11,34 @@ you when a new version of itself is available.
 
 ## Download
 
-Pick your system, unzip anywhere, start the launcher. These links always point at the newest release.
+<table>
+  <thead>
+    <tr>
+      <th align="left">Distribution</th>
+      <th align="left">🪟 Windows</th>
+      <th align="left" colspan="2">🐧 Linux</th>
+      <th align="left">🍎 macOS</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>ZIP</b><br><sub>unzip, double-click</sub></td>
+      <td><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-windows.zip">offclip-windows.zip</a></b><br><sub>then <code>run.bat</code></sub></td>
+      <td colspan="2"><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-linux.zip">offclip-linux.zip</a></b><br><sub>then <code>run.sh</code> (any distribution)</sub></td>
+      <td><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-macos.zip">offclip-macos.zip</a></b><br><sub>then <code>run.command</code></sub></td>
+    </tr>
+    <tr>
+      <td><b>Package</b><br><sub>install once</sub></td>
+      <td><i>coming soon</i></td>
+      <td><sub>DEB</sub><br><i>coming soon</i></td>
+      <td><sub>RPM</sub><br><i>coming soon</i></td>
+      <td><sub>no DMG until the Apple developer fee (99 USD/year) is paid: use the ZIP</sub></td>
+    </tr>
+  </tbody>
+</table>
 
-| | download | then double-click |
-|---|---|---|
-| **Windows** | [offclip-windows.zip](https://github.com/psuzzi/offclip/releases/latest/download/offclip-windows.zip) | `run.bat` |
-| **macOS** | [offclip-macos.zip](https://github.com/psuzzi/offclip/releases/latest/download/offclip-macos.zip) | `run.command` |
-| **Linux** | [offclip-linux.zip](https://github.com/psuzzi/offclip/releases/latest/download/offclip-linux.zip) | `run.sh` (or `./run.sh` in a terminal) |
+Any processor (Intel, AMD, Apple Silicon, ARM): the launcher picks what fits. Nothing to install by hand: the
+first start finds or fetches Python and ffmpeg and tells you what it is doing. Checksums: [SHA256SUMS](https://github.com/psuzzi/offclip/releases/latest/download/SHA256SUMS).
 
 All releases, with notes and checksums: <https://github.com/psuzzi/offclip/releases>.
 
