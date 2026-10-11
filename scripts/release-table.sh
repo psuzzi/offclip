@@ -19,9 +19,9 @@ cat <<HTML
   <thead>
     <tr>
       <th align="left" width="10%">Distro</th>
-      <th align="left" width="30%">🪟 Windows</th>
-      <th align="left" colspan="2" width="30%">🐧 Linux</th>
-      <th align="left" width="30%">🍎 macOS</th>
+      <th align="left" width="30%">Windows</th>
+      <th align="left" colspan="2" width="30%">Linux</th>
+      <th align="left" width="30%">macOS</th>
     </tr>
   </thead>
   <tbody>
