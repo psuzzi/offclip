@@ -11,8 +11,15 @@ you when a new version of itself is available.
 
 ## Download
 
-**[Download the latest release](https://github.com/psuzzi/offclip/releases/latest)** → `offclip-<version>.zip`,
-unzip it anywhere, then start the launcher for your OS (see *Install*). The only requirement is Python.
+Pick your system, unzip anywhere, start the launcher. These links always point at the newest release.
+
+| | download | then double-click |
+|---|---|---|
+| **Windows** | [offclip-windows.zip](https://github.com/psuzzi/offclip/releases/latest/download/offclip-windows.zip) | `run.bat` |
+| **macOS** | [offclip-macos.zip](https://github.com/psuzzi/offclip/releases/latest/download/offclip-macos.zip) | `run.command` |
+| **Linux** | [offclip-linux.zip](https://github.com/psuzzi/offclip/releases/latest/download/offclip-linux.zip) | `run.sh` (or `./run.sh` in a terminal) |
+
+All releases, with notes and checksums: <https://github.com/psuzzi/offclip/releases>.
 
 ## Requirements
 
@@ -29,7 +36,7 @@ unzip it anywhere, then start the launcher for your OS (see *Install*). The only
 
 ## Install
 
-1. **Download** `offclip-<version>.zip` from the [releases page](https://github.com/psuzzi/offclip/releases/latest) and unzip it anywhere you like (or `git clone https://github.com/psuzzi/offclip`).
+1. **Download** the ZIP for your system from the table above and unzip it anywhere you like (or `git clone https://github.com/psuzzi/offclip`).
 2. **Install Python** if you do not have it (per-OS notes below).
 3. **Start** the launcher for your OS. The first start takes about a minute; later starts are immediate.
 
