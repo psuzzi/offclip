@@ -18,19 +18,19 @@ cat <<HTML
 <table>
   <thead>
     <tr>
-      <th align="left">Distribution</th>
-      <th align="left">🪟 Windows</th>
-      <th align="left" colspan="2">🐧 Linux</th>
-      <th align="left">🍎 macOS</th>
+      <th align="left" width="10%">Distribution</th>
+      <th align="left" width="30%">🪟 Windows</th>
+      <th align="left" colspan="2" width="30%">🐧 Linux</th>
+      <th align="left" width="30%">🍎 macOS</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <td><b>Package</b><br><sub>install once</sub></td>
       <td>$EXE</td>
-      <td><sub>DEB</sub><br>$DEB</td>
-      <td><sub>RPM</sub><br>$RPM</td>
-      <td><sub>no DMG until the Apple developer fee (99 USD/year) is paid: use the ZIP</sub></td>
+      <td width="15%"><sub>DEB</sub><br>$DEB</td>
+      <td width="15%"><sub>RPM</sub><br>$RPM</td>
+      <td><i>no DMG yet</i><br><sub>use the ZIP below</sub></td>
     </tr>
     <tr>
       <td><b>ZIP</b><br><sub>unzip, double-click</sub></td>
