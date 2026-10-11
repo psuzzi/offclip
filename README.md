@@ -25,9 +25,9 @@ you when a new version of itself is available.
   <tbody>
     <tr>
       <td><b>Package</b><br><sub>install once</sub></td>
-      <td><i>coming soon</i></td>
-      <td><sub>DEB</sub><br><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip_latest_all.deb">offclip_latest_all.deb</a></b><br><sub>Ubuntu, Debian</sub></td>
-      <td><sub>RPM</sub><br><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-latest-1.noarch.rpm">offclip-latest-1.noarch.rpm</a></b><br><sub>Fedora, RHEL</sub></td>
+      <td><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-setup.exe">offclip-setup.exe</a></b><br><sub>per-user install, no admin</sub></td>
+      <td><sub>DEB</sub><br><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-latest.deb">offclip-latest.deb</a></b><br><sub>Ubuntu, Debian</sub></td>
+      <td><sub>RPM</sub><br><b><a href="https://github.com/psuzzi/offclip/releases/latest/download/offclip-latest.rpm">offclip-latest.rpm</a></b><br><sub>Fedora, RHEL</sub></td>
       <td><i>no DMG yet</i><br><sub>use the ZIP below</sub></td>
     </tr>
     <tr>
