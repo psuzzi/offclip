@@ -109,9 +109,10 @@ for example `because: Python 3.12.1 at /usr/local/bin/python3 has no Tkinter`.
   lists only show qualities that exist for that video.
 - *Choose folder…* sets where files go (remembered between runs; default is your Downloads folder).
 - *Download* saves every ticked row, one after the other. The *Status* column shows progress.
-- **?** opens a small menu: check for updates, report a problem, about (component versions).
-- When a newer offclip is published, a bar appears under the title: *Update now* fetches it, verifies it
-  and restarts; *Later* hides the bar until next time.
+- Top right: the yellow **?** reports a problem (your text plus the versions and last log lines go into a prefilled
+  GitHub issue in your browser); the **i** shows the version report and turns blue when a newer offclip exists.
+  Open it and press *Update now*: offclip fetches the new version, verifies it and restarts.
+- **Language**: the window follows your system language, English or Italian. *Help ▸ Language* overrides it.
 
 ## Command line
 

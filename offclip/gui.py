@@ -12,7 +12,8 @@
     check_updates / do_update    talk to offclip.update
   selftest      opens and closes the window; used by CI
 
-Colours and labels are constants at the top. Everything that talks to yt-dlp lives in core.py, not here.
+Colours are constants at the top; every user-visible text comes from i18n.py via _t("key").
+Everything that talks to yt-dlp lives in core.py, not here.
 """
 from __future__ import annotations
 
@@ -26,6 +27,8 @@ from tkinter import filedialog, messagebox, ttk
 from typing import List, Optional
 
 from . import REPO, __version__, core
+from .i18n import t as _t
+from . import i18n
 
 ISSUES_URL = f"https://github.com/{REPO}/issues"
 LINK_COLOR = "#1a56db"
@@ -34,6 +37,14 @@ BANNER_FG = "#1e3a8a"
 INFO_IDLE = ("#6b7280", "white")      # grey "i"
 INFO_UPDATE = ("#2563eb", "white")    # blue "i" when a newer version exists
 HELP_COLORS = ("#facc15", "#1f2937")  # yellow "?" with dark text
+
+
+def _status_text(text: str) -> str:
+    """core.download reports '42%', 'downloading', 'processing' or 'retrying 1/2': translate the words."""
+    if text.startswith("retrying"):
+        n, _, total = text.split()[-1].partition("/")
+        return _t("st_retrying", n=n, total=total)
+    return {"downloading": _t("st_downloading"), "processing": _t("st_processing")}.get(text, text)
 
 
 class ColorButton(tk.Label):
@@ -77,7 +88,7 @@ class Row:
         self.link.bind("<Button-1>", lambda _e: self.clip and webbrowser.open(self.clip.short_url))
         self.title = add(ttk.Label(t, text=url, wraplength=340), 5)
         self.channel = add(ttk.Label(t, text="", wraplength=160), 6)
-        self.status = add(ttk.Label(t, text="fetching info…", width=16), 7)
+        self.status = add(ttk.Label(t, text=_t("st_fetching"), width=16), 7)
         add(ttk.Button(t, text="×", width=2, command=lambda: app.remove(self)), 8)
 
     # -- state ---------------------------------------------------------------
@@ -90,11 +101,11 @@ class Row:
         self.mp3_q["values"] = [f"{k} kbps" for k in clip.mp3_choices()]
         self.mp4_q.current(0)
         self.mp3_q.current(0)
-        self.status.config(text="ready", foreground="")
+        self.status.config(text=_t("st_ready"), foreground="")
         self._sync()
 
     def fail(self, msg: str) -> None:
-        self.status.config(text="error", foreground="red")
+        self.status.config(text=_t("st_error"), foreground="red")
         self.title.config(text=f"{self.url}\n{msg}")
         self.app.log(f"probe failed: {self.url}: {msg}")
 
@@ -131,6 +142,7 @@ class App(tk.Tk):
         self.title(f"offclip {__version__}")
         self.minsize(960, 460)
         self.settings = core.load_settings()
+        i18n.set_language(self.settings.get("language", "auto"))
         self.outdir = self.settings.get("outdir") or core.default_outdir()
         self.rows: List[Row] = []
         self.busy = False
@@ -142,11 +154,11 @@ class App(tk.Tk):
     def _build(self) -> None:
         top = ttk.Frame(self, padding=(12, 12, 12, 4))
         top.pack(fill="x")
-        ttk.Label(top, text="Download from YouTube", font=("", 16, "bold")).pack(side="left")
+        ttk.Label(top, text=_t("title"), font=("", 16, "bold")).pack(side="left")
         self._build_menu()
-        self.info_btn = ColorButton(top, "i", self.show_info, INFO_IDLE, tooltip="Versions and updates")
+        self.info_btn = ColorButton(top, "i", self.show_info, INFO_IDLE, tooltip=_t("tip_info"))
         self.info_btn.pack(side="right", padx=(6, 0))
-        self.help_btn = ColorButton(top, "?", self.report_problem, HELP_COLORS, tooltip="Report a problem")
+        self.help_btn = ColorButton(top, "?", self.report_problem, HELP_COLORS, tooltip=_t("tip_report"))
         self.help_btn.pack(side="right")
         self.release = None
         self.update_text = tk.StringVar(value="")
@@ -161,17 +173,17 @@ class App(tk.Tk):
         entry.bind("<Return>", lambda _e: self.add_url())
         entry.focus_set()
         self.url_entry = entry
-        self.add_btn = ttk.Button(add, text="Add link", command=self.add_url)
+        self.add_btn = ttk.Button(add, text=_t("add_link"), command=self.add_url)
         self.add_btn.pack(side="left", padx=(8, 0))
 
         # bottom, from the bottom up: Download alone and centred; above it, Choose folder… then the path
         dl_row = ttk.Frame(self, padding=(12, 6, 12, 12))
         dl_row.pack(side="bottom", fill="x")
-        self.dl_btn = ttk.Button(dl_row, text="Download", command=self.start_download, state="disabled")
+        self.dl_btn = ttk.Button(dl_row, text=_t("download"), command=self.start_download, state="disabled")
         self.dl_btn.pack()
         folder_row = ttk.Frame(self, padding=(12, 6))
         folder_row.pack(side="bottom", fill="x")
-        ttk.Button(folder_row, text="Choose folder…", command=self.choose_folder).pack(side="left")
+        ttk.Button(folder_row, text=_t("choose_folder"), command=self.choose_folder).pack(side="left")
         self.folder_lbl = ttk.Label(folder_row, text="", foreground="gray")
         self.folder_lbl.pack(side="left", padx=(10, 0))
         self._show_folder()
@@ -181,7 +193,7 @@ class App(tk.Tk):
         box.pack(fill="both", expand=True, padx=12, pady=(0, 4))
         self.table = ttk.Frame(box, padding=(8, 6))
         self.table.pack(fill="both", expand=True)
-        for c, h in enumerate(["MP4", "Quality", "MP3", "Quality", "Link", "Title", "Channel", "Status", ""]):
+        for c, h in enumerate(["MP4", _t("col_quality"), "MP3", _t("col_quality"), _t("col_link"), _t("col_title"), _t("col_channel"), _t("col_status"), ""]):
             ttk.Label(self.table, text=h, font=("", 10, "bold")).grid(row=0, column=c, sticky="w", padx=4, pady=(0, 6))
         self.table.columnconfigure(5, weight=3)
         self.table.columnconfigure(6, weight=1)
@@ -195,29 +207,40 @@ class App(tk.Tk):
         bar = tk.Menu(self)
         if mac:                                   # the application menu: About goes here, Quit is added by macOS
             apple = tk.Menu(bar, name="apple", tearoff=False)
-            apple.add_command(label="About offclip", command=self.show_info)
+            apple.add_command(label=_t("menu_about"), command=self.show_info)
             apple.add_separator()
             bar.add_cascade(menu=apple)
         filem = tk.Menu(bar, tearoff=False)
-        filem.add_command(label="Add link", accelerator="Cmd+L" if mac else "Ctrl+L", command=self._focus_entry)
-        filem.add_command(label="Choose folder…", command=self.choose_folder)
+        filem.add_command(label=_t("add_link"), accelerator="Cmd+L" if mac else "Ctrl+L", command=self._focus_entry)
+        filem.add_command(label=_t("choose_folder"), command=self.choose_folder)
         filem.add_separator()
-        filem.add_command(label="Download", command=self.start_download)
+        filem.add_command(label=_t("download"), command=self.start_download)
         if not mac:
             filem.add_separator()
-            filem.add_command(label="Quit", accelerator="Ctrl+Q", command=self.destroy)
-        bar.add_cascade(label="File", menu=filem)
+            filem.add_command(label=_t("menu_quit"), accelerator="Ctrl+Q", command=self.destroy)
+        bar.add_cascade(label=_t("menu_file"), menu=filem)
         helpm = tk.Menu(bar, name="help" if mac else None, tearoff=False)
-        helpm.add_command(label="Check for updates…", command=self.check_updates)
-        helpm.add_command(label="Report a problem…", command=self.report_problem)
+        helpm.add_command(label=_t("menu_check"), command=self.check_updates)
+        helpm.add_command(label=_t("menu_report"), command=self.report_problem)
+        langm = tk.Menu(helpm, tearoff=False)                    # Help > Language: System / English / Italiano
+        self.lang_var = tk.StringVar(value=self.settings.get("language", "auto"))
+        langm.add_radiobutton(label=_t("menu_system"), value="auto", variable=self.lang_var, command=self._set_language)
+        for code, name in i18n.LANGUAGES.items():
+            langm.add_radiobutton(label=name, value=code, variable=self.lang_var, command=self._set_language)
+        helpm.add_cascade(label=_t("menu_language"), menu=langm)
         if not mac:
             helpm.add_separator()
-            helpm.add_command(label="About offclip", command=self.show_info)
-        bar.add_cascade(label="Help", menu=helpm)
+            helpm.add_command(label=_t("menu_about"), command=self.show_info)
+        bar.add_cascade(label=_t("menu_help"), menu=helpm)
         self.config(menu=bar)
         self.bind_all("<Command-l>" if mac else "<Control-l>", lambda _e: self._focus_entry())
         if not mac:
             self.bind_all("<Control-q>", lambda _e: self.destroy())
+
+    def _set_language(self) -> None:
+        self.settings["language"] = self.lang_var.get()
+        core.save_settings(self.settings)
+        messagebox.showinfo("offclip", _t("language_changed"))
 
     def _focus_entry(self) -> None:
         self.url_entry.focus_set()
@@ -261,8 +284,7 @@ class App(tk.Tk):
         if self.rows:
             self.hint.grid_remove()
             return
-        self.hint.config(text="Drop links here, or paste one above and press Enter" if self.dnd_ok
-                         else "Paste a link above and press Enter")
+        self.hint.config(text=_t("hint_dnd") if self.dnd_ok else _t("hint"))
         self.hint.grid(row=1, column=0, columnspan=9, sticky="w", padx=4, pady=14)
 
     # -- actions -------------------------------------------------------------
@@ -271,7 +293,7 @@ class App(tk.Tk):
         if not url:
             return
         if len(self.rows) >= core.MAX_ROWS:
-            messagebox.showinfo("offclip", f"At most {core.MAX_ROWS} links at a time.")
+            messagebox.showinfo("offclip", _t("max_rows", n=core.MAX_ROWS))
             return
         if any(r.url == url for r in self.rows):
             self.url_var.set("")
@@ -302,7 +324,7 @@ class App(tk.Tk):
         self.refresh_buttons()
 
     def choose_folder(self) -> None:
-        d = filedialog.askdirectory(initialdir=self.outdir, title="Save downloads to…")
+        d = filedialog.askdirectory(initialdir=self.outdir, title=_t("save_dialog"))
         if d:
             self.outdir = d
             self.settings["outdir"] = d
@@ -310,7 +332,7 @@ class App(tk.Tk):
             self._show_folder()
 
     def _show_folder(self) -> None:
-        self.folder_lbl.config(text=f"Save to: {self.outdir}")
+        self.folder_lbl.config(text=_t("save_to", path=self.outdir))
 
     def refresh_buttons(self) -> None:
         ok = (not self.busy) and any(r.wants() for r in self.rows)
@@ -330,15 +352,15 @@ class App(tk.Tk):
             mp4, mp3 = row.choices()
 
             def progress(frac: Optional[float], text: str, row=row):
-                self.after(0, row.set_status, text)
+                self.after(0, row.set_status, _status_text(text))
 
             try:
                 files = core.download(row.clip, self.outdir, mp4_height=mp4, mp3_kbps=mp3, progress=progress)
-                self.after(0, row.set_status, "done ✓", "green")
+                self.after(0, row.set_status, _t("st_done"), "green")
                 self.log(f"saved {[str(f) for f in files]}")
             except Exception as e:
                 msg = str(e).splitlines()[0][:200]
-                self.after(0, row.set_status, "error", "red")
+                self.after(0, row.set_status, _t("st_error"), "red")
                 self.after(0, row.title.config, {"text": f"{row.clip.title}\n{msg}"})
                 self.log(f"download failed: {row.url}: {msg}")
         self.after(0, self._done)
@@ -363,7 +385,7 @@ class App(tk.Tk):
         body = ttk.Frame(w, padding=16)
         body.pack(fill="both", expand=True)
         ttk.Label(body, text=f"offclip {__version__}", font=("", 15, "bold")).pack(anchor="w")
-        ttk.Label(body, text="Save public clips for personal offline use.", foreground="gray").pack(anchor="w", pady=(0, 10))
+        ttk.Label(body, text=_t("tagline"), foreground="gray").pack(anchor="w", pady=(0, 10))
         mono = ("Menlo", 11) if sys.platform == "darwin" else ("Consolas", 10) if sys.platform == "win32" else ("monospace", 10)
         report = "\n".join(f"{k:8} {v}" for k, v in core.versions().items())
         txt = tk.Text(body, height=5, width=64, font=mono, relief="flat", wrap="none")
@@ -376,42 +398,42 @@ class App(tk.Tk):
         self.update_lbl = tk.Label(band, textvariable=self.update_text, bg=BANNER_BG, fg=BANNER_FG, font=("", 12, "bold"), justify="left")
         self.update_lbl.pack(side="left", fill="x", expand=True)
         if self.release:
-            self.update_text.set(f"offclip {self.release.version} is available (you have {__version__}).")
-            self.update_btn = ttk.Button(band, text="Update now", command=self.do_update)
+            self.update_text.set(_t("upd_available", new=self.release.version, cur=__version__))
+            self.update_btn = ttk.Button(band, text=_t("upd_now"), command=self.do_update)
             self.update_btn.pack(side="left", padx=(10, 4))
-            ttk.Button(band, text="What's new", command=lambda: webbrowser.open(self.release.page)).pack(side="left")
+            ttk.Button(band, text=_t("whats_new"), command=lambda: webbrowser.open(self.release.page)).pack(side="left")
         else:
             if not self.update_text.get():
-                self.update_text.set("No update known yet." if not self.settings.get("last_update_check") else "You have the latest version.")
-            ttk.Button(band, text="Check for updates", command=lambda: self.check_updates(auto=False)).pack(side="left", padx=(10, 0))
+                self.update_text.set(_t("upd_unknown") if not self.settings.get("last_update_check") else _t("upd_latest"))
+            ttk.Button(band, text=_t("check_updates"), command=lambda: self.check_updates(auto=False)).pack(side="left", padx=(10, 0))
 
         foot = ttk.Frame(body)
         foot.pack(fill="x", pady=(14, 0))
-        ttk.Button(foot, text="Report a problem…", command=self.report_problem).pack(side="left")
-        ttk.Button(foot, text="Close", command=w.destroy).pack(side="right")
+        ttk.Button(foot, text=_t("menu_report"), command=self.report_problem).pack(side="left")
+        ttk.Button(foot, text=_t("close"), command=w.destroy).pack(side="right")
         w.bind("<Escape>", lambda _e: w.destroy())
 
     # -- report a problem --------------------------------------------------------
     def report_problem(self) -> None:
         """Until the relay exists: a dialog that prepares a GitHub issue with the description and the context."""
         w = tk.Toplevel(self)
-        w.title("Report a problem")
+        w.title(_t("report_title"))
         w.transient(self)
         body = ttk.Frame(w, padding=16)
         body.pack(fill="both", expand=True)
-        ttk.Label(body, text="What happened? A problem, an idea, a question.", font=("", 13, "bold")).pack(anchor="w")
-        ttk.Label(body, text="Your text, the component versions and the last lines of the log are included. Nothing else is sent.",
+        ttk.Label(body, text=_t("report_question"), font=("", 13, "bold")).pack(anchor="w")
+        ttk.Label(body, text=_t("report_note"),
                   foreground="gray", wraplength=520).pack(anchor="w", pady=(2, 8))
         text = tk.Text(body, height=8, width=70, wrap="word")
         text.pack(fill="both", expand=True)
         text.focus_set()
         foot = ttk.Frame(body)
         foot.pack(fill="x", pady=(12, 0))
-        ttk.Button(foot, text="Cancel", command=w.destroy).pack(side="right")
+        ttk.Button(foot, text=_t("cancel"), command=w.destroy).pack(side="right")
 
         def send():
             desc = text.get("1.0", "end").strip()
-            title = (desc.splitlines() or ["Report from offclip"])[0][:80]
+            title = (desc.splitlines() or [_t("report_default_title")])[0][:80]
             context = "\n".join(f"{k}: {v}" for k, v in core.versions().items())
             tail = "\n".join(self.lines[-25:])
             body_md = f"{desc}\n\n---\n```\n{context}\n```\n<details><summary>Last log lines</summary>\n\n```\n{tail}\n```\n</details>\n"
@@ -419,7 +441,7 @@ class App(tk.Tk):
             webbrowser.open(url)
             w.destroy()
 
-        ttk.Button(foot, text="Send (opens GitHub)", command=send).pack(side="right", padx=(0, 8))
+        ttk.Button(foot, text=_t("report_send"), command=send).pack(side="right", padx=(0, 8))
         w.bind("<Escape>", lambda _e: w.destroy())
 
     # -- self-update -----------------------------------------------------------
@@ -436,12 +458,12 @@ class App(tk.Tk):
 
     def _update_result(self, rel, auto: bool) -> None:
         if rel is None:
-            self.update_text.set(f"You have the latest version ({__version__}).")
+            self.update_text.set(_t("upd_latest_v", cur=__version__))
             if not auto and (self.info_win is None or not self.info_win.winfo_exists()):
                 self.show_info()
             return
         self.release = rel
-        self.update_text.set(f"offclip {rel.version} is available (you have {__version__}).")
+        self.update_text.set(_t("upd_available", new=rel.version, cur=__version__))
         self.info_btn.set_colors(INFO_UPDATE)          # the "i" turns blue: that is the update notice
         if not auto:
             if self.info_win is not None and self.info_win.winfo_exists():
@@ -459,11 +481,11 @@ class App(tk.Tk):
         def work():
             from . import update
             try:
-                update.apply(self.release, progress=lambda st: self.after(0, self.update_text.set, f"Updating… {st}"))
+                update.apply(self.release, progress=lambda st: self.after(0, self.update_text.set, _t("updating", stage=_t("upd_" + st))))
                 self.after(0, self._update_done)
             except Exception as e:
                 self.log(f"update failed: {e}")
-                self.after(0, self.update_text.set, f"Update failed: {str(e)[:120]}")
+                self.after(0, self.update_text.set, _t("upd_failed", error=str(e)[:120]))
                 self.after(0, lambda: self.update_btn.config(state="normal"))
         threading.Thread(target=work, daemon=True).start()
 
@@ -471,10 +493,10 @@ class App(tk.Tk):
         from . import update
         self.log(f"updated to {self.release.version}")
         if update.relaunch():
-            messagebox.showinfo("offclip", f"Updated to {self.release.version}. offclip will now restart.")
+            messagebox.showinfo("offclip", _t("upd_done_restart", new=self.release.version))
             self.destroy()
         else:
-            messagebox.showinfo("offclip", f"Updated to {self.release.version}. Please close and start offclip again.")
+            messagebox.showinfo("offclip", _t("upd_done_manual", new=self.release.version))
 
     def log(self, line: str) -> None:
         self.lines.append(line)
@@ -500,7 +522,10 @@ def selftest() -> None:
     app.info_btn.set_colors(INFO_UPDATE); app.update()
     app.after(1000, app.destroy)
     app.mainloop()
-    print("selftest ok:", core.versions(), "| drag and drop:", "yes" if app.dnd_ok else "no")
+    i18n.set_language("it")
+    assert _t("download") == "Scarica" and _status_text("retrying 1/2") == "nuovo tentativo (1/2)…"
+    i18n.set_language("en")
+    print("selftest ok:", core.versions(), "| drag and drop:", "yes" if app.dnd_ok else "no", "| language:", i18n.detect_language())
 
 
 def main() -> None:

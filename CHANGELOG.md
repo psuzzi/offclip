@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.8 — 2026-10-12
+
+- Italian and English: the window follows the system language (Windows UI language, macOS preferred language,
+  `LANG` on Linux). *Help ▸ Language* overrides it; the choice applies from the next start.
+- All texts live in `offclip/i18n.py`; adding a language is one dictionary.
+
 ## 1.1.7 — 2026-10-11
 
 - Two buttons top right: a yellow **?** to report a problem, and an **i** that shows the version report. The **i** turns

@@ -144,7 +144,7 @@ def probe(url: str) -> Clip:
 
 # ----------------------------------------------------------------------------- download
 
-Progress = Callable[[Optional[float], str], None]   # (fraction or None, human text)
+Progress = Callable[[Optional[float], str], None]   # (fraction or None, text: "42%", "downloading", "processing", "retrying 1/2")
 ATTEMPTS = 3
 _RETRYABLE = ("403", "Forbidden", "timed out", "Connection reset", "Remote end closed", "unable to download video data",
               "HTTP Error 5", "Temporary failure", "fragment")
@@ -170,9 +170,9 @@ def download(clip: Clip, outdir: str, *, mp4_height: Optional[int] = None, mp3_k
         if d.get("status") == "downloading":
             total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
             done = d.get("downloaded_bytes") or 0
-            progress(done / total if total else None, f"{done / total:.0%}" if total else "downloading…")
+            progress(done / total if total else None, f"{done / total:.0%}" if total else "downloading")
         elif d.get("status") == "finished":
-            progress(1.0, "processing…")
+            progress(1.0, "processing")
 
     base = {
         "outtmpl": str(out / "%(title)s [%(id)s].%(ext)s"),
@@ -204,7 +204,7 @@ def download(clip: Clip, outdir: str, *, mp4_height: Optional[int] = None, mp3_k
                 if attempt == ATTEMPTS or not _retryable(e):
                     raise
                 if progress:
-                    progress(None, f"retrying ({attempt}/{ATTEMPTS - 1})…")
+                    progress(None, f"retrying {attempt}/{ATTEMPTS - 1}")
                 time.sleep(2 * attempt)
         if last:
             raise last
