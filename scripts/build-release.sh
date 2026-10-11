@@ -31,3 +31,5 @@ pack offclip-windows.zip run.bat scripts/bootstrap.ps1 "${COMMON[@]}"
 pack offclip-macos.zip   run.command run.sh scripts/bootstrap.sh "${COMMON[@]}"
 pack offclip-linux.zip   run.sh setup-linux.sh scripts/bootstrap.sh "${COMMON[@]}"
 (cd "$OUT" && shasum -a 256 offclip-*.zip > SHA256SUMS && cat SHA256SUMS)
+"$ROOT/scripts/release-table.sh" "$TAG" > "$OUT/notes-header.md"
+echo "Release notes header written to $OUT/notes-header.md (prepend it to the notes)."
