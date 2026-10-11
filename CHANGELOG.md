@@ -1,9 +1,16 @@
 # Changelog
 
+## 1.1.2 — 2026-10-11
+
+- Linux packages: `.deb` for Ubuntu/Debian and `.rpm` for Fedora/RHEL, architecture-independent, with an
+  application-menu entry and icon. They declare Python, Tkinter and (recommended) ffmpeg as dependencies, so the
+  distribution installs them; the first start then only adds yt-dlp.
+- Setup window: when offclip is started from a desktop menu, with no terminal to read, the setup lines appear in a small window.
+- Download table on the release page: per-OS links, icons, package row.
+
 ## 1.1.1 — 2026-10-11
 
-- Self-update test release: no functional change. The window title shows the running version.
-- Download table: per-OS links, icons, package row.
+- Tagged only, never released: superseded by 1.1.2 the same day.
 
 ## 1.1.0 — 2026-10-11
 
