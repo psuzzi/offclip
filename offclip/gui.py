@@ -12,6 +12,8 @@ from . import REPO, __version__, core
 
 ISSUES_URL = f"https://github.com/{REPO}/issues"
 LINK_COLOR = "#1a56db"
+BANNER_BG = "#dbeafe"     # light azure: the update notice must stand apart from the window, in light and dark mode
+BANNER_FG = "#1e3a8a"
 
 
 class Row:
@@ -112,12 +114,12 @@ class App(tk.Tk):
         menu_btn["menu"] = menu
         menu_btn.pack(side="right")
 
-        # update bar: hidden until a newer release is found
-        self.upd = ttk.Frame(self, padding=(12, 2, 12, 6))
-        self.upd_lbl = ttk.Label(self.upd, text="")
+        # update banner: hidden until a newer release is found; its own colour so it is not mistaken for the app
+        self.upd = tk.Frame(self, bg=BANNER_BG, padx=12, pady=8)
+        self.upd_lbl = tk.Label(self.upd, text="", bg=BANNER_BG, fg=BANNER_FG, font=("", 12, "bold"))
         self.upd_lbl.pack(side="left")
         self.upd_btn = ttk.Button(self.upd, text="Update now", command=self.do_update)
-        self.upd_btn.pack(side="left", padx=(10, 4))
+        self.upd_btn.pack(side="left", padx=(14, 4))
         ttk.Button(self.upd, text="What's new", command=lambda: self.release and webbrowser.open(self.release.page)).pack(side="left", padx=4)
         ttk.Button(self.upd, text="Later", command=self.upd.pack_forget).pack(side="left", padx=4)
         self.release = None
@@ -311,7 +313,7 @@ class App(tk.Tk):
         self.release = rel
         self.upd_lbl.config(text=f"offclip {rel.version} is available (you have {__version__}).")
         self.upd_btn.config(state="normal")
-        self.upd.pack(fill="x", before=self.add_frame)
+        self.upd.pack(fill="x", padx=12, pady=(0, 6), before=self.add_frame)
 
     def do_update(self) -> None:
         if not self.release or self.busy:
