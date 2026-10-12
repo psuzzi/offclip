@@ -4,7 +4,7 @@
   ColorButton   flat coloured one-letter button (the yellow "?" and the "i" top right)
   Row           one pasted link: its widgets in the table, its probed metadata, its MP4/MP3 choices
   App           the window
-    _build        layout, top to bottom: title + buttons, search strip (secondary), box = paste field + table, folder row, Download
+    _build        layout, top to bottom: title + buttons, search strip (secondary), raised box = paste field + table + Download, folder row
     _build_menu   File / Help menu bar
     _setup_dnd    drag-and-drop of links onto the table (optional tkinterdnd2)
     add_url / remove / start_download / _download_all    the download flow (one at a time, background thread)
@@ -203,12 +203,8 @@ class App(tk.Tk):
         ttk.Button(search, text=_t("search_btn"), command=self.search_youtube).pack(side="left", padx=(6, 0))
         ttk.Separator(self, orient="horizontal").pack(fill="x", padx=12, pady=(2, 10))
 
-        # bottom, from the bottom up: Download alone and centred; above it, Choose folder… then the path
-        dl_row = ttk.Frame(self, padding=(12, 6, 12, 12))
-        dl_row.pack(side="bottom", fill="x")
-        self.dl_btn = ttk.Button(dl_row, text=_t("download"), command=self.start_download, state="disabled")
-        self.dl_btn.pack()
-        folder_row = ttk.Frame(self, padding=(12, 6))
+        # bottom: the folder row, below the main box
+        folder_row = ttk.Frame(self, padding=(12, 6, 12, 12))
         folder_row.pack(side="bottom", fill="x")
         ttk.Button(folder_row, text=_t("choose_folder"), command=self.choose_folder).pack(side="left")
         ttk.Button(folder_row, text=_t("open_folder"), command=self.open_folder).pack(side="right")
@@ -217,18 +213,24 @@ class App(tk.Tk):
         self._show_folder()
 
         # the table: a visible box with headers, an empty-state hint, and drag-and-drop of links
-        box = tk.Frame(self, bd=1, relief="solid")
-        box.pack(fill="both", expand=True, padx=12, pady=(0, 4))
+        # the main box, raised like a card: paste field + tall Add button, the table, Download bottom-right
+        ttk.Style(self).configure("Big.TButton", font=("", 13, "bold"), padding=(18, 10))
+        box = tk.Frame(self, bd=2, relief="raised", padx=4, pady=4)
+        box.pack(fill="both", expand=True, padx=12, pady=(0, 6))
         add = ttk.Frame(box, padding=(8, 8, 8, 4))
         add.pack(fill="x")
         self.url_var = tk.StringVar()
         entry = PlaceholderEntry(add, textvariable=self.url_var, placeholder=_t("paste_placeholder"), font=("", 14))
-        entry.pack(side="left", fill="x", expand=True, ipady=4)
+        entry.pack(side="left", fill="both", expand=True, ipady=6)
         entry.bind("<Return>", lambda _e: self.add_url())
         self.url_entry = entry
-        self.add_btn = ttk.Button(add, text=_t("add_link"), command=self.add_url)
-        self.add_btn.pack(side="left", padx=(8, 0))
+        self.add_btn = ttk.Button(add, text=_t("add_link"), command=self.add_url, style="Big.TButton")
+        self.add_btn.pack(side="left", padx=(8, 0), ipady=4)
         self.add_frame = add
+        dl_row = ttk.Frame(box, padding=(8, 4, 8, 8))
+        dl_row.pack(side="bottom", fill="x")
+        self.dl_btn = ttk.Button(dl_row, text=_t("download"), command=self.start_download, state="disabled", style="Big.TButton")
+        self.dl_btn.pack(side="right", ipady=4)
         self.table = ttk.Frame(box, padding=(8, 6))
         self.table.pack(fill="both", expand=True)
         for c, h in enumerate(["MP4", _t("col_quality"), "MP3", _t("col_quality"), _t("col_link"), _t("col_title"), _t("col_channel"), _t("col_status"), ""]):
