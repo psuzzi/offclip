@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.9 — 2026-10-12
+
+- **Layout**: the paste field, the table and *Download* sit together in one raised card; the paste field shows a hint;
+  *Download* is bottom-right inside the card. The folder row (Choose folder, path, **Open folder**) sits below it.
+- **Search on YouTube**: a muted strip under the title opens your browser on the results page for the words you type;
+  offclip itself searches nothing.
+- **Open folder** button: shows the destination in Finder / Explorer / the file manager.
+- **Readability**: colours adapt to light and dark windows; titles and channels on one line, full text on hover;
+  the Link column shows the video id (click opens it); quality lists appear only for the ticked format.
+- **Progress bar** in the Status column while downloading.
+- **Keyboard**: Cmd/Ctrl+V outside a field adds the links in the clipboard; Cmd/Ctrl+Enter downloads; Cmd/Ctrl+L goes to the paste field.
+
 ## 1.1.8 — 2026-10-12
 
 - Italian and English: the window follows the system language (Windows UI language, macOS preferred language,
