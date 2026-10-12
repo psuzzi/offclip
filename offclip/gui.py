@@ -214,23 +214,23 @@ class App(tk.Tk):
 
         # the table: a visible box with headers, an empty-state hint, and drag-and-drop of links
         # the main box, raised like a card: paste field + tall Add button, the table, Download bottom-right
-        ttk.Style(self).configure("Big.TButton", font=("", 13, "bold"), padding=(18, 10))
+        ttk.Style(self).configure("Big.TButton", font=("", 13, "bold"), padding=(14, 3))
         box = tk.Frame(self, bd=2, relief="raised", padx=4, pady=4)
         box.pack(fill="both", expand=True, padx=12, pady=(0, 6))
         add = ttk.Frame(box, padding=(8, 8, 8, 4))
         add.pack(fill="x")
         self.url_var = tk.StringVar()
-        entry = PlaceholderEntry(add, textvariable=self.url_var, placeholder=_t("paste_placeholder"), font=("", 14))
-        entry.pack(side="left", fill="both", expand=True, ipady=6)
+        entry = PlaceholderEntry(add, textvariable=self.url_var, placeholder=_t("paste_placeholder"), font=("", 13))
+        entry.pack(side="left", fill="x", expand=True, ipady=2)
         entry.bind("<Return>", lambda _e: self.add_url())
         self.url_entry = entry
         self.add_btn = ttk.Button(add, text=_t("add_link"), command=self.add_url, style="Big.TButton")
-        self.add_btn.pack(side="left", padx=(8, 0), ipady=4)
+        self.add_btn.pack(side="left", padx=(8, 0))
         self.add_frame = add
         dl_row = ttk.Frame(box, padding=(8, 4, 8, 8))
         dl_row.pack(side="bottom", fill="x")
         self.dl_btn = ttk.Button(dl_row, text=_t("download"), command=self.start_download, state="disabled", style="Big.TButton")
-        self.dl_btn.pack(side="right", ipady=4)
+        self.dl_btn.pack(side="right")
         self.table = ttk.Frame(box, padding=(8, 6))
         self.table.pack(fill="both", expand=True)
         for c, h in enumerate(["MP4", _t("col_quality"), "MP3", _t("col_quality"), _t("col_link"), _t("col_title"), _t("col_channel"), _t("col_status"), ""]):
