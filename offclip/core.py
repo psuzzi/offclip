@@ -40,6 +40,17 @@ def save_settings(data: dict) -> None:
         pass
 
 
+def open_in_file_manager(path: str) -> None:
+    """Show `path` in Finder / Explorer / the desktop's file manager."""
+    import subprocess
+    if sys.platform == "darwin":
+        subprocess.Popen(["open", path])
+    elif os.name == "nt":
+        os.startfile(path)  # type: ignore[attr-defined]
+    else:
+        subprocess.Popen(["xdg-open", path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
 def default_outdir() -> str:
     d = Path.home() / "Downloads"
     return str(d if d.is_dir() else Path.home())

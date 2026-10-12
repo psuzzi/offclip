@@ -20,6 +20,7 @@ from __future__ import annotations
 import sys
 import threading
 import urllib.parse
+from pathlib import Path
 import traceback
 import webbrowser
 import tkinter as tk
@@ -184,8 +185,9 @@ class App(tk.Tk):
         folder_row = ttk.Frame(self, padding=(12, 6))
         folder_row.pack(side="bottom", fill="x")
         ttk.Button(folder_row, text=_t("choose_folder"), command=self.choose_folder).pack(side="left")
+        ttk.Button(folder_row, text=_t("open_folder"), command=self.open_folder).pack(side="right")
         self.folder_lbl = ttk.Label(folder_row, text="", foreground="gray")
-        self.folder_lbl.pack(side="left", padx=(10, 0))
+        self.folder_lbl.pack(side="left", padx=(10, 0), fill="x", expand=True)
         self._show_folder()
 
         # the table: a visible box with headers, an empty-state hint, and drag-and-drop of links
@@ -330,6 +332,13 @@ class App(tk.Tk):
             self.settings["outdir"] = d
             core.save_settings(self.settings)
             self._show_folder()
+
+    def open_folder(self) -> None:
+        try:
+            Path(self.outdir).mkdir(parents=True, exist_ok=True)
+            core.open_in_file_manager(self.outdir)
+        except Exception as e:
+            self.log(f"open folder failed: {e}")
 
     def _show_folder(self) -> None:
         self.folder_lbl.config(text=_t("save_to", path=self.outdir))
