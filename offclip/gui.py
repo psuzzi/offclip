@@ -3,7 +3,7 @@
   ColorButton   flat coloured one-letter button (the yellow "?" and the "i" top right)
   Row           one pasted link: its widgets in the table, its probed metadata, its MP4/MP3 choices
   App           the window
-    _build        layout, top to bottom: title + buttons, paste box, table box, folder row, Download
+    _build        layout, top to bottom: title + buttons, paste box, search row, table box, folder row, Download
     _build_menu   File / Help menu bar
     _setup_dnd    drag-and-drop of links onto the table (optional tkinterdnd2)
     add_url / remove / start_download / _download_all    the download flow (one at a time, background thread)
@@ -177,6 +177,16 @@ class App(tk.Tk):
         self.add_btn = ttk.Button(add, text=_t("add_link"), command=self.add_url)
         self.add_btn.pack(side="left", padx=(8, 0))
 
+        # search row: the words go to the system browser's YouTube results page; offclip itself searches nothing
+        search = ttk.Frame(self, padding=(12, 0, 12, 8))
+        search.pack(fill="x")
+        ttk.Label(search, text=_t("search_label")).pack(side="left")
+        self.search_var = tk.StringVar()
+        sentry = ttk.Entry(search, textvariable=self.search_var)
+        sentry.pack(side="left", fill="x", expand=True, padx=(8, 0))
+        sentry.bind("<Return>", lambda _e: self.search_youtube())
+        ttk.Button(search, text=_t("search_btn"), command=self.search_youtube).pack(side="left", padx=(8, 0))
+
         # bottom, from the bottom up: Download alone and centred; above it, Choose folder… then the path
         dl_row = ttk.Frame(self, padding=(12, 6, 12, 12))
         dl_row.pack(side="bottom", fill="x")
@@ -307,6 +317,13 @@ class App(tk.Tk):
         self.rows.append(row)
         self.refresh_buttons()
         threading.Thread(target=self._probe, args=(row,), daemon=True).start()
+
+    def search_youtube(self) -> None:
+        words = self.search_var.get().strip()
+        if not words:
+            return
+        webbrowser.open("https://www.youtube.com/results?" + urllib.parse.urlencode({"search_query": words}))
+        self.search_var.set("")
 
     def _probe(self, row: Row) -> None:
         try:

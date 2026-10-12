@@ -17,6 +17,8 @@ STRINGS = {
     "en": {
         "title": "Download from YouTube",
         "add_link": "Add link",
+        "search_label": "Search on YouTube:",
+        "search_btn": "Search in browser",
         "col_quality": "Quality", "col_link": "Link", "col_title": "Title", "col_channel": "Channel", "col_status": "Status",
         "hint_dnd": "Drop links here, or paste one above and press Enter",
         "hint": "Paste a link above and press Enter",
@@ -50,6 +52,8 @@ STRINGS = {
     "it": {
         "title": "Scarica da YouTube",
         "add_link": "Aggiungi link",
+        "search_label": "Cerca su YouTube:",
+        "search_btn": "Cerca nel browser",
         "col_quality": "Qualità", "col_link": "Link", "col_title": "Titolo", "col_channel": "Canale", "col_status": "Stato",
         "hint_dnd": "Trascina qui i link, oppure incollane uno qui sopra e premi Invio",
         "hint": "Incolla un link qui sopra e premi Invio",
