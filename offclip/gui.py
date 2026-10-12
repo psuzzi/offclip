@@ -1,9 +1,10 @@
 """Tkinter window. Map of this module:
 
+  PlaceholderEntry  entry with a grey hint while empty
   ColorButton   flat coloured one-letter button (the yellow "?" and the "i" top right)
   Row           one pasted link: its widgets in the table, its probed metadata, its MP4/MP3 choices
   App           the window
-    _build        layout, top to bottom: title + buttons, paste box, search row, table box, folder row, Download
+    _build        layout, top to bottom: title + buttons, search strip (secondary), box = paste field + table, folder row, Download
     _build_menu   File / Help menu bar
     _setup_dnd    drag-and-drop of links onto the table (optional tkinterdnd2)
     add_url / remove / start_download / _download_all    the download flow (one at a time, background thread)
@@ -46,6 +47,32 @@ def _status_text(text: str) -> str:
         n, _, total = text.split()[-1].partition("/")
         return _t("st_retrying", n=n, total=total)
     return {"downloading": _t("st_downloading"), "processing": _t("st_processing")}.get(text, text)
+
+
+class PlaceholderEntry(ttk.Entry):
+    """ttk.Entry showing a grey hint while empty and unfocused."""
+
+    def __init__(self, parent, textvariable: tk.StringVar, placeholder: str, **kw):
+        super().__init__(parent, textvariable=textvariable, **kw)
+        self.var, self.placeholder, self.showing = textvariable, placeholder, False
+        self.bind("<FocusIn>", self._focus_in)
+        self.bind("<FocusOut>", self._focus_out)
+        self._focus_out()
+
+    def _focus_in(self, _e=None) -> None:
+        if self.showing:
+            self.var.set("")
+            self.configure(foreground="")
+            self.showing = False
+
+    def _focus_out(self, _e=None) -> None:
+        if not self.var.get():
+            self.var.set(self.placeholder)
+            self.configure(foreground="gray")
+            self.showing = True
+
+    def value(self) -> str:
+        return "" if self.showing else self.var.get().strip()
 
 
 class ColorButton(tk.Label):
@@ -165,27 +192,16 @@ class App(tk.Tk):
         self.update_text = tk.StringVar(value="")
         self.info_win: Optional[tk.Toplevel] = None
 
-        add = ttk.Frame(self, padding=(12, 4, 12, 8))
-        add.pack(fill="x")
-        self.add_frame = add
-        self.url_var = tk.StringVar()
-        entry = ttk.Entry(add, textvariable=self.url_var)
-        entry.pack(side="left", fill="x", expand=True)
-        entry.bind("<Return>", lambda _e: self.add_url())
-        entry.focus_set()
-        self.url_entry = entry
-        self.add_btn = ttk.Button(add, text=_t("add_link"), command=self.add_url)
-        self.add_btn.pack(side="left", padx=(8, 0))
-
-        # search row: the words go to the system browser's YouTube results page; offclip itself searches nothing
-        search = ttk.Frame(self, padding=(12, 0, 12, 8))
+        # secondary: a muted strip that sends a search to the system browser; offclip itself searches nothing
+        search = ttk.Frame(self, padding=(12, 2, 12, 6))
         search.pack(fill="x")
-        ttk.Label(search, text=_t("search_label")).pack(side="left")
+        ttk.Label(search, text=_t("search_label"), foreground="gray").pack(side="left")
         self.search_var = tk.StringVar()
-        sentry = ttk.Entry(search, textvariable=self.search_var)
-        sentry.pack(side="left", fill="x", expand=True, padx=(8, 0))
+        sentry = ttk.Entry(search, textvariable=self.search_var, width=28)
+        sentry.pack(side="left", padx=(8, 0))
         sentry.bind("<Return>", lambda _e: self.search_youtube())
-        ttk.Button(search, text=_t("search_btn"), command=self.search_youtube).pack(side="left", padx=(8, 0))
+        ttk.Button(search, text=_t("search_btn"), command=self.search_youtube).pack(side="left", padx=(6, 0))
+        ttk.Separator(self, orient="horizontal").pack(fill="x", padx=12, pady=(2, 10))
 
         # bottom, from the bottom up: Download alone and centred; above it, Choose folder… then the path
         dl_row = ttk.Frame(self, padding=(12, 6, 12, 12))
@@ -203,6 +219,16 @@ class App(tk.Tk):
         # the table: a visible box with headers, an empty-state hint, and drag-and-drop of links
         box = tk.Frame(self, bd=1, relief="solid")
         box.pack(fill="both", expand=True, padx=12, pady=(0, 4))
+        add = ttk.Frame(box, padding=(8, 8, 8, 4))
+        add.pack(fill="x")
+        self.url_var = tk.StringVar()
+        entry = PlaceholderEntry(add, textvariable=self.url_var, placeholder=_t("paste_placeholder"), font=("", 14))
+        entry.pack(side="left", fill="x", expand=True, ipady=4)
+        entry.bind("<Return>", lambda _e: self.add_url())
+        self.url_entry = entry
+        self.add_btn = ttk.Button(add, text=_t("add_link"), command=self.add_url)
+        self.add_btn.pack(side="left", padx=(8, 0))
+        self.add_frame = add
         self.table = ttk.Frame(box, padding=(8, 6))
         self.table.pack(fill="both", expand=True)
         for c, h in enumerate(["MP4", _t("col_quality"), "MP3", _t("col_quality"), _t("col_link"), _t("col_title"), _t("col_channel"), _t("col_status"), ""]):
@@ -256,7 +282,8 @@ class App(tk.Tk):
 
     def _focus_entry(self) -> None:
         self.url_entry.focus_set()
-        self.url_entry.select_range(0, "end")
+        if not self.url_entry.showing:
+            self.url_entry.select_range(0, "end")
 
     # -- drag and drop -----------------------------------------------------------
     def _setup_dnd(self, box: tk.Widget) -> None:
@@ -275,8 +302,10 @@ class App(tk.Tk):
 
     def _on_drop(self, event) -> None:
         for url in self._urls_in(str(event.data)):
+            self.url_entry._focus_in()        # leave placeholder mode, then add
             self.url_var.set(url)
             self.add_url()
+        self.url_entry._focus_out()
 
     def _urls_in(self, data: str) -> List[str]:
         """URLs out of whatever the drag source handed over (Tcl list, uri-list, 'url\ntitle', …)."""
@@ -301,7 +330,7 @@ class App(tk.Tk):
 
     # -- actions -------------------------------------------------------------
     def add_url(self) -> None:
-        url = self.url_var.get().strip()
+        url = self.url_entry.value()
         if not url:
             return
         if len(self.rows) >= core.MAX_ROWS:
@@ -311,6 +340,8 @@ class App(tk.Tk):
             self.url_var.set("")
             return
         self.url_var.set("")
+        if self.focus_get() is not self.url_entry:
+            self.url_entry._focus_out()
         if not self.rows:
             self.hint.grid_remove()
         row = Row(self, len(self.rows), url)
