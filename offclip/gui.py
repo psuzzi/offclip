@@ -33,7 +33,10 @@ from .i18n import t as _t
 from . import i18n
 
 ISSUES_URL = f"https://github.com/{REPO}/issues"
-LINK_COLOR = "#1a56db"
+LINK_LIGHT, LINK_DARK = "#1a56db", "#8ab4f8"        # link colour on a light / dark window background
+MUTED_LIGHT, MUTED_DARK = "#6b6b6b", "#b0b0b0"       # secondary text
+LINK_COLOR = LINK_LIGHT                               # set for real in App._pick_theme()
+MUTED = MUTED_LIGHT
 BANNER_BG = "#dbeafe"     # light azure band for the update notice inside the info dialog
 BANNER_FG = "#1e3a8a"
 INFO_IDLE = ("#6b7280", "white")      # grey "i"
@@ -47,6 +50,36 @@ def _status_text(text: str) -> str:
         n, _, total = text.split()[-1].partition("/")
         return _t("st_retrying", n=n, total=total)
     return {"downloading": _t("st_downloading"), "processing": _t("st_processing")}.get(text, text)
+
+
+def attach_tooltip(widget: tk.Widget, text_of) -> None:
+    """Show `text_of()` in a small box while the pointer rests on `widget` (used for truncated titles)."""
+    tip = {"win": None}
+
+    def show(_e=None):
+        text = text_of()
+        if not text or tip["win"] is not None:
+            return
+        w = tk.Toplevel(widget)
+        w.wm_overrideredirect(True)
+        x, y = widget.winfo_rootx(), widget.winfo_rooty() + widget.winfo_height() + 4
+        w.wm_geometry(f"+{x}+{y}")
+        tk.Label(w, text=text, justify="left", wraplength=520, relief="solid", borderwidth=1,
+                 padx=8, pady=4, bg="#ffffe0", fg="#000000").pack()
+        tip["win"] = w
+
+    def hide(_e=None):
+        if tip["win"] is not None:
+            tip["win"].destroy()
+            tip["win"] = None
+
+    widget.bind("<Enter>", show)
+    widget.bind("<Leave>", hide)
+    widget.bind("<ButtonPress>", hide)
+
+
+def shorten(text: str, n: int) -> str:
+    return text if len(text) <= n else text[: n - 1].rstrip() + "…"
 
 
 class PlaceholderEntry(ttk.Entry):
@@ -68,7 +101,7 @@ class PlaceholderEntry(ttk.Entry):
     def _focus_out(self, _e=None) -> None:
         if not self.var.get():
             self.var.set(self.placeholder)
-            self.configure(foreground="gray")
+            self.configure(foreground=MUTED)
             self.showing = True
 
     def value(self) -> str:
@@ -109,22 +142,29 @@ class Row:
             return widget
 
         add(ttk.Checkbutton(t, variable=self.mp4_on, command=self._sync), 0)
-        self.mp4_q = add(ttk.Combobox(t, width=7, state="disabled"), 1)
+        self.mp4_q = add(ttk.Combobox(t, width=7, state="readonly"), 1)
         add(ttk.Checkbutton(t, variable=self.mp3_on, command=self._sync), 2)
-        self.mp3_q = add(ttk.Combobox(t, width=9, state="disabled"), 3)
+        self.mp3_q = add(ttk.Combobox(t, width=9, state="readonly"), 3)
         self.link = add(ttk.Label(t, text="…", foreground=LINK_COLOR, cursor="hand2"), 4)
         self.link.bind("<Button-1>", lambda _e: self.clip and webbrowser.open(self.clip.short_url))
-        self.title = add(ttk.Label(t, text=url, wraplength=340), 5)
-        self.channel = add(ttk.Label(t, text="", wraplength=160), 6)
-        self.status = add(ttk.Label(t, text=_t("st_fetching"), width=16), 7)
+        self.full_title, self.full_channel = url, ""
+        self.title = add(ttk.Label(t, text=shorten(url, 48)), 5)
+        self.channel = add(ttk.Label(t, text=""), 6)
+        attach_tooltip(self.link, lambda: self.clip.short_url if self.clip else "")
+        attach_tooltip(self.title, lambda: self.full_title)
+        attach_tooltip(self.channel, lambda: self.full_channel)
+        self.status = add(ttk.Label(t, text=_t("st_fetching"), width=14), 7)
+        self.bar = add(ttk.Progressbar(t, length=90, mode="determinate", maximum=100), 7)
+        self.bar.grid_remove()                       # shown only while a download reports progress
         add(ttk.Button(t, text="×", width=2, command=lambda: app.remove(self)), 8)
 
     # -- state ---------------------------------------------------------------
     def fill(self, clip: core.Clip) -> None:
         self.clip = clip
-        self.link.config(text=clip.short_url.replace("https://", ""))
-        self.title.config(text=clip.title or clip.url)
-        self.channel.config(text=clip.channel)
+        self.link.config(text=shorten(clip.id or clip.short_url.replace("https://", ""), 14))   # just the id; the link is the whole URL
+        self.set_title(clip.title or clip.url)
+        self.full_channel = clip.channel
+        self.channel.config(text=shorten(clip.channel, 22))
         self.mp4_q["values"] = [f"{h}p" for h in clip.video_heights] or ["best"]
         self.mp3_q["values"] = [f"{k} kbps" for k in clip.mp3_choices()]
         self.mp4_q.current(0)
@@ -134,13 +174,21 @@ class Row:
 
     def fail(self, msg: str) -> None:
         self.status.config(text=_t("st_error"), foreground="red")
-        self.title.config(text=f"{self.url}\n{msg}")
+        self.set_title(f"{self.url}  —  {msg}")
         self.app.log(f"probe failed: {self.url}: {msg}")
 
+    def set_title(self, text: str) -> None:
+        self.full_title = text
+        self.title.config(text=shorten(text, 48))
+
     def _sync(self) -> None:
+        """The quality list of a format is visible only while that format is ticked (and the clip is known)."""
         ready = self.clip is not None
-        self.mp4_q.config(state="readonly" if ready and self.mp4_on.get() else "disabled")
-        self.mp3_q.config(state="readonly" if ready and self.mp3_on.get() else "disabled")
+        for on, combo in ((self.mp4_on.get(), self.mp4_q), (self.mp3_on.get(), self.mp3_q)):
+            if ready and on:
+                combo.grid()
+            else:
+                combo.grid_remove()
         self.app.refresh_buttons()
 
     def wants(self) -> bool:
@@ -153,7 +201,17 @@ class Row:
         return mp4, mp3
 
     def set_status(self, text: str, color: str = "") -> None:
+        self.bar.grid_remove()
+        self.status.grid()
         self.status.config(text=text, foreground=color)
+
+    def set_progress(self, frac: Optional[float], text: str) -> None:
+        if frac is None:
+            self.set_status(text)
+            return
+        self.status.grid_remove()
+        self.bar.grid()
+        self.bar["value"] = max(0, min(100, int(frac * 100)))
 
     def regrid(self, index: int) -> None:
         for widget in self.w:
@@ -179,7 +237,19 @@ class App(tk.Tk):
         self.after(1500, lambda: self.check_updates(auto=True))
 
     # -- layout --------------------------------------------------------------
+    def _pick_theme(self) -> None:
+        """Dark or light window background? Pick link and secondary-text colours that stay readable on it."""
+        global LINK_COLOR, MUTED
+        try:
+            bg = ttk.Style(self).lookup("TFrame", "background") or self.cget("background")
+            r, g, b = (v / 65535 for v in self.winfo_rgb(bg))
+            dark = (0.299 * r + 0.587 * g + 0.114 * b) < 0.5
+        except Exception:
+            dark = False
+        LINK_COLOR, MUTED = (LINK_DARK, MUTED_DARK) if dark else (LINK_LIGHT, MUTED_LIGHT)
+
     def _build(self) -> None:
+        self._pick_theme()
         top = ttk.Frame(self, padding=(12, 12, 12, 4))
         top.pack(fill="x")
         ttk.Label(top, text=_t("title"), font=("", 16, "bold")).pack(side="left")
@@ -195,7 +265,7 @@ class App(tk.Tk):
         # secondary: a muted strip that sends a search to the system browser; offclip itself searches nothing
         search = ttk.Frame(self, padding=(12, 2, 12, 6))
         search.pack(fill="x")
-        ttk.Label(search, text=_t("search_label"), foreground="gray").pack(side="left")
+        ttk.Label(search, text=_t("search_label"), foreground=MUTED).pack(side="left")
         self.search_var = tk.StringVar()
         sentry = ttk.Entry(search, textvariable=self.search_var, width=28)
         sentry.pack(side="left", padx=(8, 0))
@@ -208,7 +278,7 @@ class App(tk.Tk):
         folder_row.pack(side="bottom", fill="x")
         ttk.Button(folder_row, text=_t("choose_folder"), command=self.choose_folder).pack(side="left")
         ttk.Button(folder_row, text=_t("open_folder"), command=self.open_folder).pack(side="right")
-        self.folder_lbl = ttk.Label(folder_row, text="", foreground="gray")
+        self.folder_lbl = ttk.Label(folder_row, text="", foreground=MUTED)
         self.folder_lbl.pack(side="left", padx=(10, 0), fill="x", expand=True)
         self._show_folder()
 
@@ -237,7 +307,7 @@ class App(tk.Tk):
             ttk.Label(self.table, text=h, font=("", 10, "bold")).grid(row=0, column=c, sticky="w", padx=4, pady=(0, 6))
         self.table.columnconfigure(5, weight=3)
         self.table.columnconfigure(6, weight=1)
-        self.hint = ttk.Label(self.table, text="", foreground="gray")
+        self.hint = ttk.Label(self.table, text="", foreground=MUTED)
         self._setup_dnd(box)
         self._refresh_hint()
 
@@ -274,6 +344,8 @@ class App(tk.Tk):
         bar.add_cascade(label=_t("menu_help"), menu=helpm)
         self.config(menu=bar)
         self.bind_all("<Command-l>" if mac else "<Control-l>", lambda _e: self._focus_entry())
+        self.bind_all("<Command-Return>" if mac else "<Control-Return>", lambda _e: self.start_download())
+        self.bind_all("<Command-v>" if mac else "<Control-v>", self._paste_anywhere)
         if not mac:
             self.bind_all("<Control-q>", lambda _e: self.destroy())
 
@@ -281,6 +353,22 @@ class App(tk.Tk):
         self.settings["language"] = self.lang_var.get()
         core.save_settings(self.settings)
         messagebox.showinfo("offclip", _t("language_changed"))
+
+    def _paste_anywhere(self, event=None):
+        """Cmd/Ctrl+V outside a text field: links in the clipboard become rows."""
+        w = self.focus_get()
+        if isinstance(w, (ttk.Entry, tk.Entry, tk.Text)):
+            return None                               # let the field handle its own paste
+        try:
+            urls = self._urls_in(self.clipboard_get())
+        except Exception:
+            return None
+        for url in urls:
+            self.url_entry._focus_in()
+            self.url_var.set(url)
+            self.add_url()
+        self.url_entry._focus_out()
+        return "break" if urls else None
 
     def _focus_entry(self) -> None:
         self.url_entry.focus_set()
@@ -411,7 +499,7 @@ class App(tk.Tk):
             mp4, mp3 = row.choices()
 
             def progress(frac: Optional[float], text: str, row=row):
-                self.after(0, row.set_status, _status_text(text))
+                self.after(0, row.set_progress, frac, _status_text(text))
 
             try:
                 files = core.download(row.clip, self.outdir, mp4_height=mp4, mp3_kbps=mp3, progress=progress)
@@ -420,7 +508,7 @@ class App(tk.Tk):
             except Exception as e:
                 msg = str(e).splitlines()[0][:200]
                 self.after(0, row.set_status, _t("st_error"), "red")
-                self.after(0, row.title.config, {"text": f"{row.clip.title}\n{msg}"})
+                self.after(0, row.set_title, f"{row.clip.title}  —  {msg}")
                 self.log(f"download failed: {row.url}: {msg}")
         self.after(0, self._done)
 
