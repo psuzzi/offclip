@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.12 — 2026-10-14
+
+- **Six new languages**: German, French, Spanish, Portuguese (one dictionary for Portugal and Brazil), Dutch and
+  Polish. The window follows the system language; *Help ▸ Language* overrides it. The translations are
+  machine-assisted: corrections from native speakers are welcome as pull requests or issues (#7).
+- The selftest now opens the window in every language and checks that nothing is cut at the minimum size.
+
 ## 1.1.11 — 2026-10-13
 
 - **After a download**: next to *done ✓* an **open** link shows the saved file in Finder / Explorer (the folder on
