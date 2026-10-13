@@ -948,11 +948,11 @@ def _selftest_status_fits(app: App, row: Row) -> None:
 
 def _selftest_paste_hint(app: App) -> None:
     app._fit_paste_hint(200)
-    assert app.url_entry.placeholder == _t("paste_placeholder_short")
+    assert app.url_entry.placeholder == _t("paste_placeholder_short"), f"narrow entry hint: {app.url_entry.placeholder!r}"
     app._fit_paste_hint(4000)
-    assert app.url_entry.placeholder == _t("paste_placeholder")
+    assert app.url_entry.placeholder == _t("paste_placeholder"), f"wide entry hint: {app.url_entry.placeholder!r}"
     if app.url_entry.showing:
-        assert app.url_var.get() == _t("paste_placeholder")
+        assert app.url_var.get() == _t("paste_placeholder"), f"entry shows {app.url_var.get()!r}"
 
 
 def main() -> None:
