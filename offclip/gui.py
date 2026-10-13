@@ -65,6 +65,40 @@ def _status_text(text: str) -> str:
     return {"downloading": _t("st_downloading"), "processing": _t("st_processing")}.get(text, text)
 
 
+# 5x7 pixel letters for the language badges in Help > Language (only the letters the codes need)
+BADGE_FONT = {
+    "A": ".###.#...##...#######...##...##...#", "D": "####.#...##...##...##...##...#####.",
+    "E": "######....#....####.#....#....#####", "F": "######....#....####.#....#....#....",
+    "H": "#...##...##...#######...##...##...#", "I": ".###...#....#....#....#....#...###.",
+    "J": "..###...#....#....#....##..#..##...", "K": "#...##..#.#.#..##...#.#..#..#.#...#",
+    "L": "#....#....#....#....#....#....#####", "N": "#...###..###..##.#.##..###..###...#",
+    "O": ".###.#...##...##...##...##...#.###.", "P": "####.#...##...#####.#....#....#....",
+    "R": "####.#...##...#####.#.#..#..#.#...#", "S": ".#####....#.....###.....#....#####.",
+    "T": "#####..#....#....#....#....#....#..", "U": "#...##...##...##...##...##...#.###.",
+    "V": "#...##...##...##...##...#.#.#...#..", "W": "#...##...##...##.#.##.#.###.###...#",
+    "Z": "#####....#...#...#...#...#....#####",
+}
+BADGE_BG, BADGE_FG = "#8a8f98", "#ffffff"   # mid grey with white letters: readable in light and dark menus
+
+
+def language_badge(master: tk.Misc, code: str) -> tk.PhotoImage:
+    """A small rounded grey tag with the language's two letters ("zh-tw" -> "TW"); blank for code ""."""
+    letters = code.split("-")[-1].upper()
+    w, h = 2 * 5 + 1 + 6, 7 + 4                      # two letters, a 1 px gap, 3 px padding; 2 px top and bottom
+    img = tk.PhotoImage(master=master, width=w, height=h)
+    if not letters:
+        return img                                   # transparent spacer: keeps the names aligned
+    img.put(BADGE_BG, to=(0, 0, w, h))
+    for x, y in ((0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)):
+        img.transparency_set(x, y, True)             # rounded corners
+    for i, ch in enumerate(letters[:2]):
+        for n, px in enumerate(BADGE_FONT[ch]):
+            if px == "#":
+                x, y = 3 + i * 6 + n % 5, 2 + n // 5
+                img.put(BADGE_FG, to=(x, y, x + 1, y + 1))
+    return img
+
+
 def attach_tooltip(widget: tk.Widget, text_of) -> None:
     """Show `text_of()` in a small box while the pointer rests on `widget` (used for truncated titles)."""
     tip = {"win": None}
@@ -469,9 +503,12 @@ class App(tk.Tk):
         helpm.add_command(label=_t("menu_report"), command=self.report_problem)
         langm = tk.Menu(helpm, tearoff=False)                    # Help > Language: System / English / Italiano
         self.lang_var = tk.StringVar(value=self.settings.get("language", "auto"))
-        langm.add_radiobutton(label=_t("menu_system"), value="auto", variable=self.lang_var, command=self._set_language)
+        self.badges = {code: language_badge(self, code) for code in ["", *i18n.LANGUAGES]}   # kept: Tk does not hold them
+        langm.add_radiobutton(label=_t("menu_system"), value="auto", variable=self.lang_var, command=self._set_language,
+                              image=self.badges[""], compound="left")
         for code, name in i18n.LANGUAGES.items():
-            langm.add_radiobutton(label=name, value=code, variable=self.lang_var, command=self._set_language)
+            langm.add_radiobutton(label=name, value=code, variable=self.lang_var, command=self._set_language,
+                                  image=self.badges[code], compound="left")
         helpm.add_cascade(label=_t("menu_language"), menu=langm)
         if not mac:
             helpm.add_separator()
@@ -933,6 +970,9 @@ def _selftest_languages() -> None:
     """Every dictionary is complete, and the window opens in every language with nothing cut at the minimum size."""
     bad = i18n.problems()
     assert not bad, "i18n: " + "; ".join(bad)
+    missing = {c for code in i18n.LANGUAGES for c in code.split("-")[-1].upper()} - set(BADGE_FONT)
+    assert not missing, f"badge letters missing: {sorted(missing)}"
+    assert all(len(g) == 35 for g in BADGE_FONT.values()), "a badge letter is not 5x7"
     for os_code, lang in (("zh_TW.UTF-8", "zh-tw"), ("zh-Hant-HK", "zh-tw"), ("zh-HK", "zh-tw"), ("zh-Hans-HK", "zh"),
                           ("zh_CN", "zh"), ("pt-BR", "pt"), ("de_DE.UTF-8", "de"), ("C.UTF-8", "en"), ("fil-PH", "en")):
         assert i18n.match_language(os_code) == lang, f"{os_code} -> {i18n.match_language(os_code)}, not {lang}"
