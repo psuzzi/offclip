@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.14 — 2026-10-14
+
+- **Seven new languages**: Japanese, Korean, Chinese (Simplified and Traditional), Hindi, Indonesian and Vietnamese,
+  machine-assisted; corrections from native speakers are welcome (#9). offclip now speaks 20 languages.
+- Chinese follows the system: Traditional for zh-Hant, Taiwan, Hong Kong and Macau, Simplified otherwise.
+- On Linux, Tk does not shape Devanagari, so offclip uses English instead of Hindi there (as for Arabic and Persian).
+
 ## 1.1.13 — 2026-10-14
 
 - **Five new languages**: Russian, Turkish, Arabic, Ukrainian and Persian, machine-assisted; corrections from native
