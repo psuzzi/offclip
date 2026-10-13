@@ -931,6 +931,9 @@ def _selftest_languages() -> None:
     """Every dictionary is complete, and the window opens in every language with nothing cut at the minimum size."""
     bad = i18n.problems()
     assert not bad, "i18n: " + "; ".join(bad)
+    for os_code, lang in (("zh_TW.UTF-8", "zh-tw"), ("zh-Hant-HK", "zh-tw"), ("zh-HK", "zh-tw"), ("zh-Hans-HK", "zh"),
+                          ("zh_CN", "zh"), ("pt-BR", "pt"), ("de_DE.UTF-8", "de"), ("C.UTF-8", "en"), ("fil-PH", "en")):
+        assert i18n.match_language(os_code) == lang, f"{os_code} -> {i18n.match_language(os_code)}, not {lang}"
     i18n.set_language("it")
     assert _t("download") == "Scarica" and _status_text("retrying 1/2") == "nuovo tentativo (1/2)…"
     skipped = []

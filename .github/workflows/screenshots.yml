@@ -20,7 +20,7 @@ jobs:
       - run: pip install pillow
       - name: Linux desktop bits
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb fonts-noto-cjk fonts-noto-core   # CJK and Devanagari, as on a desktop
       - name: screenshots (linux)
         if: runner.os == 'Linux'
         run: xvfb-run -a -s "-screen 0 1280x800x24" python scripts/screenshots.py shots
