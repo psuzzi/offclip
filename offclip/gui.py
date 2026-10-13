@@ -659,6 +659,8 @@ class App(tk.Tk):
         buttons = self.choose_btn.winfo_reqwidth() + self.open_btn.winfo_reqwidth()
         space = width - 24 - buttons - 10 - 8 - self.label_font.measure(_t("save_to", path=""))   # padding, gap, slack
         path = fit_middle(self.label_font, self.outdir, max(40, space))
+        if i18n.current() in i18n.RTL:                   # left-to-right marks keep "/Users/…" whole in a right-to-left line
+            path = "\u200e" + path + "\u200e"
         self.folder_lbl.config(text=_t("save_to", path=path))
 
     def refresh_buttons(self) -> None:
