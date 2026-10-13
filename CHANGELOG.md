@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.11 — 2026-10-13
+
+- **After a download**: next to *done ✓* an **open** link shows the saved file in Finder / Explorer (the folder on
+  Linux). **Clear completed** (File menu, and a quiet link next to *Download*) removes finished rows and keeps the others.
+- Finished rows are not downloaded again; tick another format on a finished row to download it with the new choice.
+- **Narrow windows**: a shorter paste hint when the long one does not fit; the Title column takes the free space and
+  titles are cut to it; long destination paths are shortened in the middle (full path on hover).
+
 ## 1.1.10 — 2026-10-13
 
 - Release pipeline: releases are now built and published by CI from a tag; no functional change.
