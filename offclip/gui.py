@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import sys
 import threading
+import unicodedata
 import urllib.parse
 from pathlib import Path
 import traceback
@@ -347,7 +348,7 @@ class App(tk.Tk):
         - Tk on X11 does no bidi: Arabic and Persian come out letter-reversed. Windows and macOS reorder them."""
         code = i18n.current()
         font = tkfont.nametofont("TkDefaultFont")
-        if any(font.measure(c) == 0 for c in i18n.LANGUAGES[code] if not c.isspace()):
+        if any(font.measure(c) == 0 for c in i18n.LANGUAGES[code] if unicodedata.category(c).startswith("L")):
             self.log(f"language {code}: the font {font.actual('family')} cannot draw it, using English")
             i18n.set_language("en")
         elif code in i18n.RTL and self.tk.call("tk", "windowingsystem") == "x11":
