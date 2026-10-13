@@ -1,17 +1,18 @@
 """Tkinter window. Map of this module:
 
-  fit_text      shorten a text to a width in pixels ("…" at the end)
+  fit_text      shorten a text to a width in pixels ("…" at the end); fit_middle cuts in the middle (paths)
   PlaceholderEntry  entry with a grey hint while empty
   ColorButton   flat coloured one-letter button (the yellow "?" and the "i" top right)
   Row           one pasted link: its widgets in the table, its probed metadata, its MP4/MP3 choices,
-                after a download the saved files and the "open" link next to "done ✓" (finish / reveal)
+                after a download the saved files and the "open" link next to "done ✓" (finish / reveal);
+                a done row is out of the Download set until a format is ticked again (_choice_changed)
   App           the window
     _build        layout, top to bottom: title + buttons, search strip (secondary), raised box = paste field + table
                   + Clear completed / Download, folder row
     _build_menu   File / Help menu bar
     _setup_dnd    drag-and-drop of links onto the table (optional tkinterdnd2)
     narrow windows  _fit_paste_hint (long or short hint, from the entry's width), _fit_titles (the Title column
-                  takes the space the other columns leave; titles are cut to it)
+                  takes the space the other columns leave; titles are cut to it), _show_folder (path cut in the middle)
     add_url / remove / clear_completed / start_download / _download_all    the download flow (one at a time, background thread)
     show_info     dialog: versions, update notice (azure band), Update now
     report_problem dialog: description -> GitHub issue prefilled (relay comes later)
@@ -106,6 +107,25 @@ def fit_text(font: tkfont.Font, text: str, px: int) -> str:
     return shorten(text, lo)
 
 
+def fit_middle(font: tkfont.Font, text: str, px: int) -> str:
+    """Like fit_text, but keeps the start and the end: "/Users/me/…/Music/clips". For paths."""
+    if font.measure(text) <= px:
+        return text
+
+    def cut(n: int) -> str:                     # keep n characters: a third at the start, the rest at the end
+        head = n // 3
+        return text[:head] + "…" + text[len(text) - (n - head):]
+
+    lo, hi = 0, len(text) - 1
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if font.measure(cut(mid)) <= px:
+            lo = mid
+        else:
+            hi = mid - 1
+    return cut(lo)
+
+
 class PlaceholderEntry(ttk.Entry):
     """ttk.Entry showing a grey hint while empty and unfocused."""
 
@@ -174,9 +194,9 @@ class Row:
             self.w.append(widget)
             return widget
 
-        add(ttk.Checkbutton(t, variable=self.mp4_on, command=self._sync), 0)
+        add(ttk.Checkbutton(t, variable=self.mp4_on, command=self._choice_changed), 0)
         self.mp4_q = add(ttk.Combobox(t, width=7, state="readonly"), 1)
-        add(ttk.Checkbutton(t, variable=self.mp3_on, command=self._sync), 2)
+        add(ttk.Checkbutton(t, variable=self.mp3_on, command=self._choice_changed), 2)
         self.mp3_q = add(ttk.Combobox(t, width=9, state="readonly"), 3)
         self.link = add(ttk.Label(t, text="…", foreground=LINK_COLOR, cursor="hand2"), 4)
         self.link.bind("<Button-1>", lambda _e: self.clip and webbrowser.open(self.clip.short_url))
@@ -240,8 +260,16 @@ class Row:
         self.app.refresh_buttons()
         self.app.refit_titles()                      # a quality list appearing or going changes the space left
 
+    def _choice_changed(self) -> None:
+        """A format ticked or unticked: a done row becomes ready again, so it can be downloaded with the new choice."""
+        if self.done:
+            self.done = False
+            self.set_status(_t("st_ready"))
+        self._sync()
+
     def wants(self) -> bool:
-        return self.clip is not None and (self.mp4_on.get() or self.mp3_on.get())
+        """Is there something to download? Not for a done row: Download does not repeat finished work."""
+        return self.clip is not None and not self.done and (self.mp4_on.get() or self.mp3_on.get())
 
     def choices(self):
         mp4 = int(self.mp4_q.get().rstrip("p")) if self.mp4_on.get() and self.mp4_q.get() != "best" else (
@@ -353,10 +381,15 @@ class App(tk.Tk):
         # bottom: the folder row, below the main box
         folder_row = ttk.Frame(self, padding=(12, 6, 12, 12))
         folder_row.pack(side="bottom", fill="x")
-        ttk.Button(folder_row, text=_t("choose_folder"), command=self.choose_folder).pack(side="left")
-        ttk.Button(folder_row, text=_t("open_folder"), command=self.open_folder).pack(side="right")
+        self.choose_btn = ttk.Button(folder_row, text=_t("choose_folder"), command=self.choose_folder)
+        self.choose_btn.pack(side="left")
+        self.open_btn = ttk.Button(folder_row, text=_t("open_folder"), command=self.open_folder)
+        self.open_btn.pack(side="right")
         self.folder_lbl = ttk.Label(folder_row, text="", foreground=MUTED)
         self.folder_lbl.pack(side="left", padx=(10, 0), fill="x", expand=True)
+        attach_tooltip(self.folder_lbl, lambda: self.outdir)
+        self.folder_row = folder_row
+        folder_row.bind("<Configure>", lambda _e: self._show_folder())
         self._show_folder()
 
         # the table: a visible box with headers, an empty-state hint, and drag-and-drop of links
@@ -603,7 +636,14 @@ class App(tk.Tk):
             self.log(f"open folder failed: {e}")
 
     def _show_folder(self) -> None:
-        self.folder_lbl.config(text=_t("save_to", path=self.outdir))
+        """'Save to: <path>', the path cut in the middle to the space between the two buttons."""
+        width = self.folder_row.winfo_width()
+        if width <= 1:                                   # not laid out yet: a guess that cannot widen the window
+            width = MIN_SIZE[0]
+        buttons = self.choose_btn.winfo_reqwidth() + self.open_btn.winfo_reqwidth()
+        space = width - 24 - buttons - 10 - 8 - self.label_font.measure(_t("save_to", path=""))   # padding, gap, slack
+        path = fit_middle(self.label_font, self.outdir, max(40, space))
+        self.folder_lbl.config(text=_t("save_to", path=path))
 
     def refresh_buttons(self) -> None:
         ok = (not self.busy) and any(r.wants() for r in self.rows)
@@ -791,8 +831,10 @@ def selftest() -> None:
     row = _selftest_row(app, "https://youtu.be/aqz-KE-bpKQ")
     app.update()
     assert row.mp3_q["values"] and row.mp4_q["values"], "quality lists empty"
-    assert app.dl_btn["state"] != "disabled", "download button should be enabled"
+    assert str(app.dl_btn["state"]) != "disabled", "download button should be enabled"
     _selftest_min_size(app)
+    _selftest_long_folder(app)
+    _selftest_done_row(app, row)
     _selftest_clear_completed(app, row, Path(tempfile.mkdtemp()) / "Big Buck Bunny [aqz-KE-bpKQ].mp3")
     _selftest_paste_hint(app)
     app.info_btn.set_colors(INFO_UPDATE); app.update()
@@ -831,6 +873,28 @@ def _selftest_min_size(app: App) -> None:
     assert all(w.winfo_rootx() + w.winfo_width() <= right for w in row.w), "a column runs past the window"
     assert row.title.winfo_width() >= TITLE_MIN_PX, "no room left for the title"
     row.mp4_on.set(False); row._sync()
+
+
+def _selftest_long_folder(app: App) -> None:
+    """A long destination path is cut in the middle and leaves the folder buttons whole (#12)."""
+    saved = app.outdir
+    app.outdir = "/home/someone/" + "/".join(f"folder-number-{i}" for i in range(30)) + "/Music/clips"
+    app._show_folder(); app.update()
+    text = app.folder_lbl.cget("text")
+    assert "…" in text and text.endswith("/Music/clips"), f"path not cut in the middle: {text}"
+    assert app.folder_lbl.winfo_width() >= app.folder_lbl.winfo_reqwidth(), "path label is clipped"
+    assert all(b.winfo_width() >= b.winfo_reqwidth() for b in (app.choose_btn, app.open_btn)), "folder buttons are cut"
+    app.outdir = saved
+    app._show_folder()
+
+
+def _selftest_done_row(app: App, row: Row) -> None:
+    """A done row is not downloaded again; ticking a format makes it ready again (#11)."""
+    row.finish([]); app.update()
+    assert not row.wants() and str(app.dl_btn["state"]) == "disabled", "Download would repeat a finished row"
+    row.mp4_on.set(True); row._choice_changed(); app.update()
+    assert not row.done and row.wants() and str(app.dl_btn["state"]) != "disabled", "ticking a format did not re-arm the row"
+    row.mp4_on.set(False); row._choice_changed()
 
 
 def _selftest_clear_completed(app: App, row: Row, saved: Path) -> None:
