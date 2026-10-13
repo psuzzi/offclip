@@ -341,13 +341,17 @@ class App(tk.Tk):
         self.auto_check = self.after(1500, lambda: self.check_updates(auto=True))
 
     def _check_script(self) -> None:
-        """English when the UI font has no glyphs for the language's script: a blank window is worse than English.
-        Happens with the private Python on Linux, whose Tk has only X11 core fonts (no Xft): Cyrillic, Arabic and CJK
-        measure 0 pixels there."""
+        """English when this Tk cannot show the language's script: a blank or garbled window is worse than English.
+        - The private Python on Linux has a Tk with X11 core fonts only (no Xft): Cyrillic, Arabic and CJK glyphs
+          measure 0 pixels there (#14).
+        - Tk on X11 does no bidi: Arabic and Persian come out letter-reversed. Windows and macOS reorder them."""
         code = i18n.current()
         font = tkfont.nametofont("TkDefaultFont")
         if any(font.measure(c) == 0 for c in i18n.LANGUAGES[code] if not c.isspace()):
             self.log(f"language {code}: the font {font.actual('family')} cannot draw it, using English")
+            i18n.set_language("en")
+        elif code in i18n.RTL and self.tk.call("tk", "windowingsystem") == "x11":
+            self.log(f"language {code}: right-to-left text is not supported by Tk on X11, using English")
             i18n.set_language("en")
 
     # -- layout --------------------------------------------------------------
@@ -945,7 +949,7 @@ def _selftest_languages() -> None:
             raise AssertionError(f"[{code}] {e}") from None
         _selftest_close(app)
     if skipped:
-        print("selftest: the UI font here cannot draw", ", ".join(skipped), "- those fall back to English")
+        print("selftest: this Tk cannot show", ", ".join(skipped), "- those fall back to English")
     i18n.set_language("en")
 
 

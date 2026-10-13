@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -24,8 +24,8 @@ jobs:
       - name: screenshots (linux)
         if: runner.os == 'Linux'
         run: xvfb-run -a -s "-screen 0 1280x800x24" python scripts/screenshots.py shots
-      - name: screenshots (windows)
-        if: runner.os == 'Windows'
+      - name: screenshots (windows, macos)
+        if: runner.os != 'Linux'
         run: python scripts/screenshots.py shots
       - uses: actions/upload-artifact@v4
         with:

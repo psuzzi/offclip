@@ -116,9 +116,11 @@ for example `because: Python 3.12.1 at /usr/local/bin/python3 has no Tkinter`.
 - **Language**: the window follows your system language; *Help ▸ Language* overrides it. Available: English,
   Italian, German, French, Spanish, Portuguese, Dutch, Polish, Russian, Turkish, Arabic, Ukrainian, Persian.
   Translations other than English and Italian are machine-assisted: corrections from native speakers are welcome as
-  pull requests to `offclip/i18n.py` or as issues. Arabic and Persian text reads right-to-left, but the window keeps
-  its left-to-right layout (Tk does not mirror layouts). On Linux, non-Latin scripts need the system Tkinter
-  (`sudo apt install python3-tk`, or the .deb/.rpm); without it offclip uses English for those languages (#14).
+  pull requests to `offclip/i18n.py` or as issues.
+  - Arabic and Persian: Windows and macOS show the text right-to-left, but the window keeps its left-to-right layout
+    (Tk does not mirror layouts). On Linux, Tk does not reorder right-to-left text, so offclip uses English there.
+  - On Linux, non-Latin scripts need the system Tkinter (`sudo apt install python3-tk`, or the .deb/.rpm); without it
+    offclip uses English for those languages (#14).
 
 ## Command line
 

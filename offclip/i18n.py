@@ -18,6 +18,8 @@ LANGUAGES = {"en": "English", "it": "Italiano", "de": "Deutsch", "fr": "Françai
              "pt": "Português", "nl": "Nederlands", "pl": "Polski", "ru": "Русский", "tr": "Türkçe", "ar": "العربية",
              "uk": "Українська", "fa": "فارسی"}
 
+RTL = {"ar", "fa"}            # right-to-left scripts: Tk on X11 (Linux) does not reorder them, see gui.App._check_script
+
 STRINGS = {
     "en": {
         "title": "Download from YouTube",

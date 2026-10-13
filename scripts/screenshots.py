@@ -2,7 +2,7 @@
 
     python scripts/screenshots.py OUT_DIR [code ...]
 
-Needs Pillow (ImageGrab). Used by .github/workflows/screenshots.yml on Linux (xvfb) and Windows; the PNGs are
+Needs Pillow (ImageGrab). Used by .github/workflows/screenshots.yml on Linux (xvfb), Windows and macOS; the PNGs are
 uploaded as a workflow artifact. Rows are filled with fake metadata, no network.
 """
 import sys
