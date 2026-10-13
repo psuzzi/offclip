@@ -113,7 +113,9 @@ for example `because: Python 3.12.1 at /usr/local/bin/python3 has no Tkinter`.
 - Top right: the yellow **?** reports a problem (your text plus the versions and last log lines go into a prefilled
   GitHub issue in your browser); the **i** shows the version report and turns blue when a newer offclip exists.
   Open it and press *Update now*: offclip fetches the new version, verifies it and restarts.
-- **Language**: the window follows your system language, English or Italian. *Help ▸ Language* overrides it.
+- **Language**: the window follows your system language; *Help ▸ Language* overrides it. Available: English,
+  Italian, German, French, Spanish, Portuguese, Dutch, Polish. Translations other than English and Italian are
+  machine-assisted: corrections from native speakers are welcome as pull requests to `offclip/i18n.py` or as issues.
 
 ## Command line
 

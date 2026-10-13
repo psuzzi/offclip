@@ -17,7 +17,8 @@
     show_info     dialog: versions, update notice (azure band), Update now
     report_problem dialog: description -> GitHub issue prefilled (relay comes later)
     check_updates / do_update    talk to offclip.update
-  selftest      opens the window, checks rows, Clear completed, the hint switch and the minimum size; used by CI
+  selftest      opens the window, checks rows, Clear completed, the hint switch and the minimum size, then the
+                dictionaries and the window in every language (_selftest_languages); used by CI
 
 Colours are constants at the top; every user-visible text comes from i18n.py via _t("key").
 Everything that talks to yt-dlp lives in core.py, not here.
@@ -325,18 +326,18 @@ class Row:
 
 
 class App(tk.Tk):
-    def __init__(self):
+    def __init__(self, language: Optional[str] = None):
         super().__init__()
         self.title(f"offclip {__version__}")
         self.minsize(*MIN_SIZE)
         self.settings = core.load_settings()
-        i18n.set_language(self.settings.get("language", "auto"))
+        i18n.set_language(language or self.settings.get("language", "auto"))   # `language`: the selftest's override
         self.outdir = self.settings.get("outdir") or core.default_outdir()
         self.rows: List[Row] = []
         self.busy = False
         self.lines: List[str] = []                     # in-memory log for the report dialog
         self._build()
-        self.after(1500, lambda: self.check_updates(auto=True))
+        self.auto_check = self.after(1500, lambda: self.check_updates(auto=True))
 
     # -- layout --------------------------------------------------------------
     def _pick_theme(self) -> None:
@@ -840,10 +841,7 @@ def selftest() -> None:
     app.info_btn.set_colors(INFO_UPDATE); app.update()
     app.after(1000, app.destroy)
     app.mainloop()
-    i18n.set_language("it")
-    assert _t("download") == "Scarica" and _status_text("retrying 1/2") == "nuovo tentativo (1/2)…"
-    assert _t("paste_placeholder_short") != STRINGS_EN["paste_placeholder_short"] and _t("clear_completed") != STRINGS_EN["clear_completed"]
-    i18n.set_language("en")
+    _selftest_languages()
     print("selftest ok:", core.versions(), "| drag and drop:", "yes" if app.dnd_ok else "no", "| language:", i18n.detect_language())
 
 
@@ -910,6 +908,42 @@ def _selftest_clear_completed(app: App, row: Row, saved: Path) -> None:
     assert not app.clear_lbl.winfo_ismapped(), "nothing left to clear"
     pending.finish([]); app.clear_completed(); app.update()
     assert not app.rows and app.hint.winfo_ismapped(), "the empty-table hint did not come back"
+
+
+def _selftest_languages() -> None:
+    """Every dictionary is complete, and the window opens in every language with nothing cut at the minimum size."""
+    bad = i18n.problems()
+    assert not bad, "i18n: " + "; ".join(bad)
+    i18n.set_language("it")
+    assert _t("download") == "Scarica" and _status_text("retrying 1/2") == "nuovo tentativo (1/2)…"
+    for code in i18n.LANGUAGES:
+        app = App(language=code)
+        app.after_cancel(app.auto_check)              # no network from these windows
+        row = _selftest_row(app, "https://youtu.be/aqz-KE-bpKQ")
+        app.update()
+        try:
+            _selftest_min_size(app)
+            _selftest_status_fits(app, row)
+            _selftest_paste_hint(app)
+        except AssertionError as e:
+            raise AssertionError(f"[{code}] {e}") from None
+        app.destroy()
+    i18n.set_language("en")
+
+
+def _selftest_status_fits(app: App, row: Row) -> None:
+    """Each status text, and "done ✓ open", fits the Status cell at the minimum size."""
+    texts = [_t(k) for k in ("st_fetching", "st_ready", "st_error", "st_downloading", "st_processing")]
+    for text in texts + [_status_text("retrying 1/2")]:
+        row.set_status(text); app.update()
+        assert row.status.winfo_width() >= row.status.winfo_reqwidth(), f"status cut: {text!r}"
+    saved = Path(core.default_outdir()) / "x.mp3"
+    row.files, row.done = [saved], True
+    row.set_status(_t("st_done")); row.open_link.grid(); app.update()
+    assert row.open_link.winfo_width() >= row.open_link.winfo_reqwidth(), "status cut: done + open"
+    assert row.title.winfo_width() >= TITLE_MIN_PX, "no room left for the title"
+    row.files, row.done = [], False
+    row.set_status(_t("st_ready"))
 
 
 def _selftest_paste_hint(app: App) -> None:

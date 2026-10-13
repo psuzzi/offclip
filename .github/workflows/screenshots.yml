@@ -1,0 +1,33 @@
+name: screenshots
+# The window in every language, as PNGs in the run's artifacts: for reviewing translations (fonts, truncation).
+on:
+  workflow_dispatch:
+  push:
+    paths: ["offclip/i18n.py", "offclip/gui.py", "scripts/screenshots.py"]
+
+jobs:
+  screenshots:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pillow
+      - name: Linux desktop bits
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+      - name: screenshots (linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a -s "-screen 0 1280x800x24" python scripts/screenshots.py shots
+      - name: screenshots (windows)
+        if: runner.os == 'Windows'
+        run: python scripts/screenshots.py shots
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-${{ runner.os }}
+          path: shots/
