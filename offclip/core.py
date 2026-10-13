@@ -51,6 +51,20 @@ def open_in_file_manager(path: str) -> None:
         subprocess.Popen(["xdg-open", path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
+def reveal_in_file_manager(path: str) -> None:
+    """Show the file `path` selected in Finder / Explorer; elsewhere (or if it is gone) open its folder."""
+    import subprocess
+    p = Path(path)
+    if not p.exists():
+        open_in_file_manager(str(p.parent if p.parent.is_dir() else Path.home()))
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", "-R", str(p)])
+    elif os.name == "nt":
+        subprocess.Popen(f'explorer /select,"{p}"')   # one string: explorer parses its own command line
+    else:
+        open_in_file_manager(str(p.parent))
+
+
 def default_outdir() -> str:
     d = Path.home() / "Downloads"
     return str(d if d.is_dir() else Path.home())

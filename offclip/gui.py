@@ -1,17 +1,22 @@
 """Tkinter window. Map of this module:
 
+  fit_text      shorten a text to a width in pixels ("…" at the end)
   PlaceholderEntry  entry with a grey hint while empty
   ColorButton   flat coloured one-letter button (the yellow "?" and the "i" top right)
-  Row           one pasted link: its widgets in the table, its probed metadata, its MP4/MP3 choices
+  Row           one pasted link: its widgets in the table, its probed metadata, its MP4/MP3 choices,
+                after a download the saved files and the "open" link next to "done ✓" (finish / reveal)
   App           the window
-    _build        layout, top to bottom: title + buttons, search strip (secondary), raised box = paste field + table + Download, folder row
+    _build        layout, top to bottom: title + buttons, search strip (secondary), raised box = paste field + table
+                  + Clear completed / Download, folder row
     _build_menu   File / Help menu bar
     _setup_dnd    drag-and-drop of links onto the table (optional tkinterdnd2)
-    add_url / remove / start_download / _download_all    the download flow (one at a time, background thread)
+    narrow windows  _fit_paste_hint (long or short hint, from the entry's width), _fit_titles (the Title column
+                  takes the space the other columns leave; titles are cut to it)
+    add_url / remove / clear_completed / start_download / _download_all    the download flow (one at a time, background thread)
     show_info     dialog: versions, update notice (azure band), Update now
     report_problem dialog: description -> GitHub issue prefilled (relay comes later)
     check_updates / do_update    talk to offclip.update
-  selftest      opens and closes the window; used by CI
+  selftest      opens the window, checks rows, Clear completed, the hint switch and the minimum size; used by CI
 
 Colours are constants at the top; every user-visible text comes from i18n.py via _t("key").
 Everything that talks to yt-dlp lives in core.py, not here.
@@ -25,6 +30,7 @@ from pathlib import Path
 import traceback
 import webbrowser
 import tkinter as tk
+import tkinter.font as tkfont
 from tkinter import filedialog, messagebox, ttk
 from typing import List, Optional
 
@@ -42,6 +48,10 @@ BANNER_FG = "#1e3a8a"
 INFO_IDLE = ("#6b7280", "white")      # grey "i"
 INFO_UPDATE = ("#2563eb", "white")    # blue "i" when a newer version exists
 HELP_COLORS = ("#facc15", "#1f2937")  # yellow "?" with dark text
+MIN_SIZE = (960, 460)                 # smallest window; selftest checks that nothing is cut at this size
+TITLE_MIN_PX = 120                    # the Title column never gets narrower than this
+COLUMNS = 9                           # MP4, quality, MP3, quality, Link, Title, Channel, Status, ×
+TITLE_COL, STATUS_COL = 5, 7
 
 
 def _status_text(text: str) -> str:
@@ -82,6 +92,20 @@ def shorten(text: str, n: int) -> str:
     return text if len(text) <= n else text[: n - 1].rstrip() + "…"
 
 
+def fit_text(font: tkfont.Font, text: str, px: int) -> str:
+    """The longest shorten(text, n) that is at most `px` pixels wide in `font`."""
+    if font.measure(text) <= px:
+        return text
+    lo, hi = 1, len(text)                       # binary search on the number of characters kept
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if font.measure(shorten(text, mid)) <= px:
+            lo = mid
+        else:
+            hi = mid - 1
+    return shorten(text, lo)
+
+
 class PlaceholderEntry(ttk.Entry):
     """ttk.Entry showing a grey hint while empty and unfocused."""
 
@@ -103,6 +127,13 @@ class PlaceholderEntry(ttk.Entry):
             self.var.set(self.placeholder)
             self.configure(foreground=MUTED)
             self.showing = True
+
+    def set_placeholder(self, text: str) -> None:
+        if text == self.placeholder:
+            return
+        self.placeholder = text
+        if self.showing:
+            self.var.set(text)
 
     def value(self) -> str:
         return "" if self.showing else self.var.get().strip()
@@ -131,6 +162,8 @@ class Row:
 
     def __init__(self, app: "App", index: int, url: str):
         self.app, self.url, self.clip = app, url, None
+        self.files: List[Path] = []                  # what the last successful download saved
+        self.done = False                            # True after a successful download: Clear completed removes it
         t, r = app.table, index + 1
         self.mp4_on = tk.BooleanVar(value=False)
         self.mp3_on = tk.BooleanVar(value=True)
@@ -148,15 +181,27 @@ class Row:
         self.link = add(ttk.Label(t, text="…", foreground=LINK_COLOR, cursor="hand2"), 4)
         self.link.bind("<Button-1>", lambda _e: self.clip and webbrowser.open(self.clip.short_url))
         self.full_title, self.full_channel = url, ""
-        self.title = add(ttk.Label(t, text=shorten(url, 48)), 5)
+        self.title = add(ttk.Label(t, text=""), TITLE_COL)
+        self.set_title(url)
         self.channel = add(ttk.Label(t, text=""), 6)
         attach_tooltip(self.link, lambda: self.clip.short_url if self.clip else "")
         attach_tooltip(self.title, lambda: self.full_title)
         attach_tooltip(self.channel, lambda: self.full_channel)
-        self.status = add(ttk.Label(t, text=_t("st_fetching"), width=14), 7)
-        self.bar = add(ttk.Progressbar(t, length=90, mode="determinate", maximum=100), 7)
-        self.bar.grid_remove()                       # shown only while a download reports progress
+        self._build_status(add(ttk.Frame(t), STATUS_COL))
         add(ttk.Button(t, text="×", width=2, command=lambda: app.remove(self)), 8)
+
+    def _build_status(self, cell: ttk.Frame) -> None:
+        """The Status cell: the status text, then "open" once a download is done; the progress bar replaces both."""
+        self.status = ttk.Label(cell, text=_t("st_fetching"))
+        self.status.grid(row=0, column=0, sticky="w")
+        self.open_link = ttk.Label(cell, text=_t("open_file"), foreground=LINK_COLOR, cursor="hand2")
+        self.open_link.grid(row=0, column=1, sticky="w", padx=(8, 0))
+        self.open_link.grid_remove()                 # shown only after a successful download
+        self.open_link.bind("<Button-1>", lambda _e: self.reveal())
+        attach_tooltip(self.open_link, lambda: "\n".join([_t("tip_open_file")] + [f.name for f in self.files]))
+        self.bar = ttk.Progressbar(cell, length=90, mode="determinate", maximum=100)
+        self.bar.grid(row=0, column=0, columnspan=2, sticky="w")
+        self.bar.grid_remove()                       # shown only while a download reports progress
 
     # -- state ---------------------------------------------------------------
     def fill(self, clip: core.Clip) -> None:
@@ -179,7 +224,10 @@ class Row:
 
     def set_title(self, text: str) -> None:
         self.full_title = text
-        self.title.config(text=shorten(text, 48))
+        self.fit_title(self.app.title_px)
+
+    def fit_title(self, px: int) -> None:
+        self.title.config(text=fit_text(self.app.label_font, self.full_title, px))
 
     def _sync(self) -> None:
         """The quality list of a format is visible only while that format is ticked (and the clip is known)."""
@@ -190,6 +238,7 @@ class Row:
             else:
                 combo.grid_remove()
         self.app.refresh_buttons()
+        self.app.refit_titles()                      # a quality list appearing or going changes the space left
 
     def wants(self) -> bool:
         return self.clip is not None and (self.mp4_on.get() or self.mp3_on.get())
@@ -202,16 +251,41 @@ class Row:
 
     def set_status(self, text: str, color: str = "") -> None:
         self.bar.grid_remove()
+        self.open_link.grid_remove()
         self.status.grid()
         self.status.config(text=text, foreground=color)
 
     def set_progress(self, frac: Optional[float], text: str) -> None:
+        self.done = False
         if frac is None:
             self.set_status(text)
             return
         self.status.grid_remove()
+        self.open_link.grid_remove()
         self.bar.grid()
         self.bar["value"] = max(0, min(100, int(frac * 100)))
+
+    def finish(self, files: List[Path]) -> None:
+        """A successful download: "done ✓", and "open" when there is a file to show."""
+        self.files, self.done = list(files), True
+        self.set_status(_t("st_done"), "green")
+        if self.files:
+            self.open_link.grid()
+        self.app.refresh_buttons()
+
+    def download_failed(self, msg: str) -> None:
+        self.files, self.done = [], False
+        self.set_status(_t("st_error"), "red")
+        self.set_title(f"{self.clip.title}  —  {msg}")
+
+    def reveal(self) -> None:
+        """Show the saved file in Finder / Explorer (selected), or its folder in other file managers."""
+        if not self.files:
+            return
+        try:
+            core.reveal_in_file_manager(str(self.files[0]))
+        except Exception as e:
+            self.app.log(f"reveal failed: {e}")
 
     def regrid(self, index: int) -> None:
         for widget in self.w:
@@ -226,7 +300,7 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title(f"offclip {__version__}")
-        self.minsize(960, 460)
+        self.minsize(*MIN_SIZE)
         self.settings = core.load_settings()
         i18n.set_language(self.settings.get("language", "auto"))
         self.outdir = self.settings.get("outdir") or core.default_outdir()
@@ -250,6 +324,9 @@ class App(tk.Tk):
 
     def _build(self) -> None:
         self._pick_theme()
+        self.label_font = tkfont.nametofont("TkDefaultFont")    # what ttk labels use: titles are measured in it
+        self.title_px = 360                                      # space for a title until the table has a size
+        self._refit_pending = False
         top = ttk.Frame(self, padding=(12, 12, 12, 4))
         top.pack(fill="x")
         ttk.Label(top, text=_t("title"), font=("", 16, "bold")).pack(side="left")
@@ -293,7 +370,9 @@ class App(tk.Tk):
         entry = PlaceholderEntry(add, textvariable=self.url_var, placeholder=_t("paste_placeholder"), font=("", 13))
         entry.pack(side="left", fill="x", expand=True, ipady=2)
         entry.bind("<Return>", lambda _e: self.add_url())
+        entry.bind("<Configure>", lambda e: self._fit_paste_hint(e.width))
         self.url_entry = entry
+        self.entry_font = tkfont.Font(self, font=("", 13))
         self.add_btn = ttk.Button(add, text=_t("add_link"), command=self.add_url, style="Big.TButton")
         self.add_btn.pack(side="left", padx=(8, 0))
         self.add_frame = add
@@ -301,12 +380,15 @@ class App(tk.Tk):
         dl_row.pack(side="bottom", fill="x")
         self.dl_btn = ttk.Button(dl_row, text=_t("download"), command=self.start_download, state="disabled", style="Big.TButton")
         self.dl_btn.pack(side="right")
+        self.clear_lbl = ttk.Label(dl_row, text=_t("clear_completed"), foreground=MUTED, cursor="hand2")
+        self.clear_lbl.bind("<Button-1>", lambda _e: self.clear_completed())   # quiet: shown only when there is something to clear
         self.table = ttk.Frame(box, padding=(8, 6))
         self.table.pack(fill="both", expand=True)
         for c, h in enumerate(["MP4", _t("col_quality"), "MP3", _t("col_quality"), _t("col_link"), _t("col_title"), _t("col_channel"), _t("col_status"), ""]):
             ttk.Label(self.table, text=h, font=("", 10, "bold")).grid(row=0, column=c, sticky="w", padx=4, pady=(0, 6))
-        self.table.columnconfigure(5, weight=3)
-        self.table.columnconfigure(6, weight=1)
+        self.table.columnconfigure(TITLE_COL, weight=1)          # only Title stretches; the others keep their natural width
+        self.table.columnconfigure(STATUS_COL, minsize=self.label_font.measure(_t("st_fetching")) + 16)
+        self.table.bind("<Configure>", lambda _e: self.refit_titles())
         self.hint = ttk.Label(self.table, text="", foreground=MUTED)
         self._setup_dnd(box)
         self._refresh_hint()
@@ -325,6 +407,8 @@ class App(tk.Tk):
         filem.add_command(label=_t("choose_folder"), command=self.choose_folder)
         filem.add_separator()
         filem.add_command(label=_t("download"), command=self.start_download)
+        filem.add_command(label=_t("clear_completed"), command=self.clear_completed, state="disabled")
+        self.file_menu, self.clear_item = filem, filem.index("end")
         if not mac:
             filem.add_separator()
             filem.add_command(label=_t("menu_quit"), accelerator="Ctrl+Q", command=self.destroy)
@@ -411,6 +495,37 @@ class App(tk.Tk):
                     urls.append(tok)
         return urls
 
+    # -- narrow windows ----------------------------------------------------------
+    def _fit_paste_hint(self, width: int) -> None:
+        """The long paste hint when it fits in the entry, the short one otherwise."""
+        long = _t("paste_placeholder")
+        fits = self.entry_font.measure(long) + 16 <= width
+        self.url_entry.set_placeholder(long if fits else _t("paste_placeholder_short"))
+
+    def _title_space(self) -> int:
+        """Pixels left for a title: the table's width minus what the other columns ask for."""
+        used = 0
+        for c in range(COLUMNS):
+            if c == TITLE_COL:
+                continue
+            widths = [w.winfo_reqwidth() + 8 for w in self.table.grid_slaves(column=c) if w is not self.hint]
+            used += max(widths + [int(self.table.grid_columnconfigure(c, "minsize"))])
+        return max(TITLE_MIN_PX, self.table.winfo_width() - 16 - used - 8 - 4)   # table padding, title padx, slack
+
+    def refit_titles(self) -> None:
+        """Cut every title to the Title column, once the pending layout is done."""
+        if not self._refit_pending:
+            self._refit_pending = True
+            self.after_idle(self._fit_titles)
+
+    def _fit_titles(self) -> None:
+        self._refit_pending = False
+        if not self.rows:
+            return
+        self.title_px = self._title_space()
+        for row in self.rows:
+            row.fit_title(self.title_px)
+
     def _refresh_hint(self) -> None:
         if self.rows:
             self.hint.grid_remove()
@@ -454,14 +569,23 @@ class App(tk.Tk):
             self.after(0, row.fail, str(e).splitlines()[0][:200])
 
     def remove(self, row: Row) -> None:
-        if self.busy:
+        self._drop([row])
+
+    def clear_completed(self) -> None:
+        """Remove the rows downloaded successfully; pending and failed ones stay."""
+        self._drop([r for r in self.rows if r.done])
+
+    def _drop(self, rows: List[Row]) -> None:
+        if self.busy or not rows:
             return
-        row.destroy()
-        self.rows.remove(row)
+        for row in rows:
+            row.destroy()
+            self.rows.remove(row)
         for i, r in enumerate(self.rows):
             r.regrid(i)
         self._refresh_hint()
         self.refresh_buttons()
+        self.refit_titles()
 
     def choose_folder(self) -> None:
         d = filedialog.askdirectory(initialdir=self.outdir, title=_t("save_dialog"))
@@ -485,6 +609,12 @@ class App(tk.Tk):
         ok = (not self.busy) and any(r.wants() for r in self.rows)
         self.dl_btn.config(state="normal" if ok else "disabled")
         self.add_btn.config(state="disabled" if self.busy or len(self.rows) >= core.MAX_ROWS else "normal")
+        can_clear = (not self.busy) and any(r.done for r in self.rows)
+        self.file_menu.entryconfigure(self.clear_item, state="normal" if can_clear else "disabled")
+        if can_clear:
+            self.clear_lbl.pack(side="right", padx=(0, 16))
+        else:
+            self.clear_lbl.pack_forget()
 
     def start_download(self) -> None:
         todo = [r for r in self.rows if r.wants()]
@@ -503,12 +633,11 @@ class App(tk.Tk):
 
             try:
                 files = core.download(row.clip, self.outdir, mp4_height=mp4, mp3_kbps=mp3, progress=progress)
-                self.after(0, row.set_status, _t("st_done"), "green")
+                self.after(0, row.finish, files)
                 self.log(f"saved {[str(f) for f in files]}")
             except Exception as e:
                 msg = str(e).splitlines()[0][:200]
-                self.after(0, row.set_status, _t("st_error"), "red")
-                self.after(0, row.set_title, f"{row.clip.title}  —  {msg}")
+                self.after(0, row.download_failed, msg)
                 self.log(f"download failed: {row.url}: {msg}")
         self.after(0, self._done)
 
@@ -655,24 +784,77 @@ class App(tk.Tk):
 
 
 def selftest() -> None:
-    """Open the window, fill one fake row, close after a second. Used by CI."""
+    """Open the window, exercise the table without the network, close after a second. Used by CI."""
+    import tempfile
     app = App()
-    app.hint.grid_remove()
-    row = Row(app, 0, "https://youtu.be/aqz-KE-bpKQ")
-    app.rows.append(row)
     assert app._urls_in("{https://youtu.be/aqz-KE-bpKQ} https://example.com/x\nTitle") == ["https://youtu.be/aqz-KE-bpKQ", "https://example.com/x"]
-    row.fill(core.Clip(url="u", id="aqz-KE-bpKQ", title="Big Buck Bunny", channel="Blender",
-                       short_url="https://youtu.be/aqz-KE-bpKQ", video_heights=[1080, 720], audio_kbps=[129, 66]))
+    row = _selftest_row(app, "https://youtu.be/aqz-KE-bpKQ")
     app.update()
     assert row.mp3_q["values"] and row.mp4_q["values"], "quality lists empty"
     assert app.dl_btn["state"] != "disabled", "download button should be enabled"
+    _selftest_min_size(app)
+    _selftest_clear_completed(app, row, Path(tempfile.mkdtemp()) / "Big Buck Bunny [aqz-KE-bpKQ].mp3")
+    _selftest_paste_hint(app)
     app.info_btn.set_colors(INFO_UPDATE); app.update()
     app.after(1000, app.destroy)
     app.mainloop()
     i18n.set_language("it")
     assert _t("download") == "Scarica" and _status_text("retrying 1/2") == "nuovo tentativo (1/2)…"
+    assert _t("paste_placeholder_short") != STRINGS_EN["paste_placeholder_short"] and _t("clear_completed") != STRINGS_EN["clear_completed"]
     i18n.set_language("en")
     print("selftest ok:", core.versions(), "| drag and drop:", "yes" if app.dnd_ok else "no", "| language:", i18n.detect_language())
+
+
+STRINGS_EN = i18n.STRINGS["en"]
+
+
+def _selftest_row(app: App, url: str, fill: bool = True) -> Row:
+    """A row as add_url makes it, filled with fake metadata instead of a probe."""
+    row = Row(app, len(app.rows), url)
+    app.rows.append(row)
+    app._refresh_hint()
+    if fill:
+        row.fill(core.Clip(url=url, id="aqz-KE-bpKQ", title="Big Buck Bunny, the long title of an open movie made with Blender in 2008",
+                           channel="Blender", short_url=url, video_heights=[1080, 720], audio_kbps=[129, 66]))
+    return row
+
+
+def _selftest_min_size(app: App) -> None:
+    """At the minimum size, with both quality lists open, every control gets the width it asks for."""
+    row = app.rows[0]
+    row.mp4_on.set(True); row._sync()
+    app.geometry("%dx%d" % MIN_SIZE); app.update(); app.update()
+    cut = [w for w in (app.dl_btn, app.add_btn, app.info_btn, app.help_btn, *row.w)
+           if w.winfo_ismapped() and w is not row.title and w.winfo_width() < w.winfo_reqwidth()]
+    assert not cut, f"cut at {MIN_SIZE}: {[(str(w), w.winfo_width(), w.winfo_reqwidth()) for w in cut]}"
+    right = app.winfo_rootx() + app.winfo_width()
+    assert all(w.winfo_rootx() + w.winfo_width() <= right for w in row.w), "a column runs past the window"
+    assert row.title.winfo_width() >= TITLE_MIN_PX, "no room left for the title"
+    row.mp4_on.set(False); row._sync()
+
+
+def _selftest_clear_completed(app: App, row: Row, saved: Path) -> None:
+    """A finished row shows "open" and goes with Clear completed; a pending row stays; empty table shows the hint."""
+    saved.write_bytes(b"")
+    pending = _selftest_row(app, "https://youtu.be/pending", fill=False)
+    row.finish([saved])
+    app.update()
+    assert row.done and row.files == [saved] and row.open_link.winfo_ismapped(), "finished row has no open link"
+    assert app.clear_lbl.winfo_ismapped(), "Clear completed should be visible"
+    app.clear_completed(); app.update()
+    assert app.rows == [pending] and not app.hint.winfo_ismapped(), "Clear completed removed the wrong rows"
+    assert not app.clear_lbl.winfo_ismapped(), "nothing left to clear"
+    pending.finish([]); app.clear_completed(); app.update()
+    assert not app.rows and app.hint.winfo_ismapped(), "the empty-table hint did not come back"
+
+
+def _selftest_paste_hint(app: App) -> None:
+    app._fit_paste_hint(200)
+    assert app.url_entry.placeholder == _t("paste_placeholder_short")
+    app._fit_paste_hint(4000)
+    assert app.url_entry.placeholder == _t("paste_placeholder")
+    if app.url_entry.showing:
+        assert app.url_var.get() == _t("paste_placeholder")
 
 
 def main() -> None:
