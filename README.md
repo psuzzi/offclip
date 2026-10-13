@@ -106,10 +106,11 @@ for example `because: Python 3.12.1 at /usr/local/bin/python3 has no Tkinter`.
 
 - Paste a link in the box and press *Enter* (or *Add link*). The row fills in with the title, the
   channel and a short link that opens the video in your browser.
-- Tick **MP3** (on by default) and/or **MP4**, and pick a quality from the list next to each. The
-  lists only show qualities that exist for that video.
+- Each row has three lists, **MP4**, **MP3** and **TXT**. The first entry of each is *off*; the others are what
+  that video offers: video heights, audio bitrates, and caption languages for a plain-text transcript
+  (*auto* marks YouTube's automatic captions). By default MP3 is on at the best bitrate, MP4 and TXT are off.
 - *Choose folder…* sets where files go (remembered between runs; default is your Downloads folder).
-- *Download* saves every ticked row, one after the other. The *Status* column shows progress.
+- *Download* saves every row that has something selected, one after the other. The *Status* column shows progress.
 - Top right: the yellow **?** reports a problem (your text plus the versions and last log lines go into a prefilled
   GitHub issue in your browser); the **i** shows the version report and turns blue when a newer offclip exists.
   Open it and press *Update now*: offclip fetches the new version, verifies it and restarts.
@@ -132,6 +133,7 @@ for example `because: Python 3.12.1 at /usr/local/bin/python3 has no Tkinter`.
 ./run.sh --mp4 1080 URL            # 1080p MP4 only
 ./run.sh --mp4 --mp3 192 URL       # best MP4 plus a 192 kbps MP3
 ./run.sh --info URL                # show title, channel and available qualities, download nothing
+./run.sh --txt URL                 # plain-text transcript from the captions (--txt it for Italian)
 ./run.sh -o ~/Music URL1 URL2      # choose the folder (remembered) and queue several links
 ./run.sh --version                 # component versions, useful in bug reports
 ```

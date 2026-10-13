@@ -3,7 +3,7 @@
   fit_text      shorten a text to a width in pixels ("…" at the end); fit_middle cuts in the middle (paths)
   PlaceholderEntry  entry with a grey hint while empty
   ColorButton   flat coloured one-letter button (the yellow "?" and the "i" top right)
-  Row           one pasted link: its widgets in the table, its probed metadata, its MP4/MP3 choices,
+  Row           one pasted link: its widgets in the table, its probed metadata, its MP4/MP3/TXT dropdowns,
                 after a download the saved files and the "open" link next to "done ✓" (finish / reveal);
                 a done row is out of the Download set until a format is ticked again (_choice_changed)
   App           the window
@@ -53,8 +53,13 @@ INFO_UPDATE = ("#2563eb", "white")    # blue "i" when a newer version exists
 HELP_COLORS = ("#facc15", "#1f2937")  # yellow "?" with dark text
 MIN_SIZE = (960, 460)                 # smallest window; selftest checks that nothing is cut at this size
 TITLE_MIN_PX = 120                    # the Title column never gets narrower than this
-COLUMNS = 9                           # MP4, quality, MP3, quality, Link, Title, Channel, Status, ×
-TITLE_COL, STATUS_COL = 5, 7
+COLUMNS = 8                           # MP4, MP3, TXT, Link, Title, Channel, Status, ×
+TITLE_COL, STATUS_COL = 4, 6
+
+
+def _caption_label(key: str, automatic: bool) -> str:
+    lang = core.caption_lang(key)
+    return _t("fmt_auto", lang=lang) if automatic else lang
 
 
 def _status_text(text: str) -> str:
@@ -221,8 +226,7 @@ class Row:
         self.files: List[Path] = []                  # what the last successful download saved
         self.done = False                            # True after a successful download: Clear completed removes it
         t, r = app.table, index + 1
-        self.mp4_on = tk.BooleanVar(value=False)
-        self.mp3_on = tk.BooleanVar(value=True)
+        self.txt_keys: List[Optional[tuple]] = [None]   # parallel to the TXT list: (caption key, automatic?) per entry
         self.w: List[tk.Widget] = []
 
         def add(widget, col, **grid):
@@ -230,21 +234,24 @@ class Row:
             self.w.append(widget)
             return widget
 
-        add(ttk.Checkbutton(t, variable=self.mp4_on, command=self._choice_changed), 0)
-        self.mp4_q = add(ttk.Combobox(t, width=7, state="readonly"), 1)
-        add(ttk.Checkbutton(t, variable=self.mp3_on, command=self._choice_changed), 2)
-        self.mp3_q = add(ttk.Combobox(t, width=9, state="readonly"), 3)
-        self.link = add(ttk.Label(t, text="…", foreground=LINK_COLOR, cursor="hand2"), 4)
+        # one dropdown per format; entry 0 is always "off", the rest is what this video offers
+        self.mp4_q = add(ttk.Combobox(t, width=7, state="readonly"), 0)
+        self.mp3_q = add(ttk.Combobox(t, width=9, state="readonly"), 1)
+        self.txt_q = add(ttk.Combobox(t, width=10, state="readonly"), 2)
+        for combo in (self.mp4_q, self.mp3_q, self.txt_q):
+            combo.bind("<<ComboboxSelected>>", lambda _e: self._choice_changed())
+            combo.grid_remove()                     # shown once the video's options are known
+        self.link = add(ttk.Label(t, text="…", foreground=LINK_COLOR, cursor="hand2"), 3)
         self.link.bind("<Button-1>", lambda _e: self.clip and webbrowser.open(self.clip.short_url))
         self.full_title, self.full_channel = url, ""
         self.title = add(ttk.Label(t, text=""), TITLE_COL)
         self.set_title(url)
-        self.channel = add(ttk.Label(t, text=""), 6)
+        self.channel = add(ttk.Label(t, text=""), 5)
         attach_tooltip(self.link, lambda: self.clip.short_url if self.clip else "")
         attach_tooltip(self.title, lambda: self.full_title)
         attach_tooltip(self.channel, lambda: self.full_channel)
         self._build_status(add(ttk.Frame(t), STATUS_COL))
-        add(ttk.Button(t, text="×", width=2, command=lambda: app.remove(self)), 8)
+        add(ttk.Button(t, text="×", width=2, command=lambda: app.remove(self)), 7)
 
     def _build_status(self, cell: ttk.Frame) -> None:
         """The Status cell: the status text, then "open" once a download is done; the progress bar replaces both."""
@@ -266,10 +273,15 @@ class Row:
         self.set_title(clip.title or clip.url)
         self.full_channel = clip.channel
         self.channel.config(text=shorten(clip.channel, 22))
-        self.mp4_q["values"] = [f"{h}p" for h in clip.video_heights] or ["best"]
-        self.mp3_q["values"] = [f"{k} kbps" for k in clip.mp3_choices()]
-        self.mp4_q.current(0)
-        self.mp3_q.current(0)
+        off = _t("fmt_off")
+        self.mp4_q["values"] = [off] + ([f"{h}p" for h in clip.video_heights] or ["best"])
+        self.mp3_q["values"] = [off] + [f"{k} kbps" for k in clip.mp3_choices()]
+        tracks = sorted(clip.captions, key=lambda c: core.caption_lang(c[0]).split("-")[0] != i18n.current().split("-")[0])
+        self.txt_keys = [None] + list(tracks)                      # the user's own language first
+        self.txt_q["values"] = [off] + [_caption_label(k, auto) for k, auto in tracks]
+        self.mp4_q.current(0)                                      # defaults: MP4 off, MP3 at the best bitrate, TXT off
+        self.mp3_q.current(1)
+        self.txt_q.current(0)
         self.status.config(text=_t("st_ready"), foreground="")
         self._sync()
 
@@ -286,18 +298,17 @@ class Row:
         self.title.config(text=fit_text(self.app.label_font, self.full_title, px))
 
     def _sync(self) -> None:
-        """The quality list of a format is visible only while that format is ticked (and the clip is known)."""
-        ready = self.clip is not None
-        for on, combo in ((self.mp4_on.get(), self.mp4_q), (self.mp3_on.get(), self.mp3_q)):
-            if ready and on:
+        """The three dropdowns appear once the video's options are known."""
+        for combo in (self.mp4_q, self.mp3_q, self.txt_q):
+            if self.clip is not None:
                 combo.grid()
             else:
                 combo.grid_remove()
         self.app.refresh_buttons()
-        self.app.refit_titles()                      # a quality list appearing or going changes the space left
+        self.app.refit_titles()
 
     def _choice_changed(self) -> None:
-        """A format ticked or unticked: a done row becomes ready again, so it can be downloaded with the new choice."""
+        """A format changed: a done row becomes ready again, so it can be downloaded with the new choice."""
         if self.done:
             self.done = False
             self.set_status(_t("st_ready"))
@@ -305,13 +316,18 @@ class Row:
 
     def wants(self) -> bool:
         """Is there something to download? Not for a done row: Download does not repeat finished work."""
-        return self.clip is not None and not self.done and (self.mp4_on.get() or self.mp3_on.get())
+        return self.clip is not None and not self.done and any(c.current() > 0 for c in (self.mp4_q, self.mp3_q, self.txt_q))
 
     def choices(self):
-        mp4 = int(self.mp4_q.get().rstrip("p")) if self.mp4_on.get() and self.mp4_q.get() != "best" else (
-            9999 if self.mp4_on.get() else None)
-        mp3 = int(self.mp3_q.get().split()[0]) if self.mp3_on.get() else None
-        return mp4, mp3
+        """(mp4 height or None, mp3 kbps or None, (caption key, automatic?) or None); entry 0 of each list is "off"."""
+        mp4 = mp3 = txt = None
+        if self.mp4_q.current() > 0:
+            mp4 = 9999 if self.mp4_q.get() == "best" else int(self.mp4_q.get().rstrip("p"))
+        if self.mp3_q.current() > 0:
+            mp3 = int(self.mp3_q.get().split()[0])
+        if self.txt_q.current() > 0:
+            txt = self.txt_keys[self.txt_q.current()]
+        return mp4, mp3, txt
 
     def set_status(self, text: str, color: str = "") -> None:
         self.bar.grid_remove()
@@ -469,7 +485,7 @@ class App(tk.Tk):
         self.clear_lbl.bind("<Button-1>", lambda _e: self.clear_completed())   # quiet: shown only when there is something to clear
         self.table = ttk.Frame(box, padding=(8, 6))
         self.table.pack(fill="both", expand=True)
-        for c, h in enumerate(["MP4", _t("col_quality"), "MP3", _t("col_quality"), _t("col_link"), _t("col_title"), _t("col_channel"), _t("col_status"), ""]):
+        for c, h in enumerate(["MP4", "MP3", "TXT", _t("col_link"), _t("col_title"), _t("col_channel"), _t("col_status"), ""]):
             ttk.Label(self.table, text=h, font=("", 10, "bold")).grid(row=0, column=c, sticky="w", padx=4, pady=(0, 6))
         self.table.columnconfigure(TITLE_COL, weight=1)          # only Title stretches; the others keep their natural width
         self.table.columnconfigure(STATUS_COL, minsize=self.label_font.measure(_t("st_fetching")) + 16)
@@ -619,7 +635,7 @@ class App(tk.Tk):
             self.hint.grid_remove()
             return
         self.hint.config(text=_t("hint_dnd") if self.dnd_ok else _t("hint"))
-        self.hint.grid(row=1, column=0, columnspan=9, sticky="w", padx=4, pady=14)
+        self.hint.grid(row=1, column=0, columnspan=COLUMNS, sticky="w", padx=4, pady=14)
 
     # -- actions -------------------------------------------------------------
     def add_url(self) -> None:
@@ -723,13 +739,13 @@ class App(tk.Tk):
 
     def _download_all(self, rows: List[Row]) -> None:
         for row in rows:
-            mp4, mp3 = row.choices()
+            mp4, mp3, txt = row.choices()
 
             def progress(frac: Optional[float], text: str, row=row):
                 self.after(0, row.set_progress, frac, _status_text(text))
 
             try:
-                files = core.download(row.clip, self.outdir, mp4_height=mp4, mp3_kbps=mp3, progress=progress)
+                files = core.download(row.clip, self.outdir, mp4_height=mp4, mp3_kbps=mp3, txt=txt, progress=progress)
                 self.after(0, row.finish, files)
                 self.log(f"saved {[str(f) for f in files]}")
             except Exception as e:
@@ -888,6 +904,7 @@ def selftest() -> None:
     row = _selftest_row(app, "https://youtu.be/aqz-KE-bpKQ")
     app.update()
     assert row.mp3_q["values"] and row.mp4_q["values"], "quality lists empty"
+    _selftest_formats(app, row)
     assert str(app.dl_btn["state"]) != "disabled", "download button should be enabled"
     _selftest_min_size(app)
     _selftest_long_folder(app)
@@ -911,14 +928,31 @@ def _selftest_row(app: App, url: str, fill: bool = True) -> Row:
     app._refresh_hint()
     if fill:
         row.fill(core.Clip(url=url, id="aqz-KE-bpKQ", title="Big Buck Bunny, the long title of an open movie made with Blender in 2008",
-                           channel="Blender", short_url=url, video_heights=[1080, 720], audio_kbps=[129, 66]))
+                           channel="Blender", short_url=url, video_heights=[1080, 720], audio_kbps=[129, 66],
+                           captions=[("de", False), ("en-orig", True)]))
     return row
 
 
+def _selftest_formats(app: App, row: Row) -> None:
+    """Three dropdowns, "off" first; defaults MP4 off, MP3 best, TXT off; any one of them arms Download (#16)."""
+    off = _t("fmt_off")
+    assert row.mp4_q["values"][0] == off and row.mp3_q["values"][0] == off and row.txt_q["values"][0] == off
+    assert row.choices() == (None, 128, None), row.choices()
+    row.mp3_q.current(0); row._choice_changed(); app.update()
+    assert not row.wants() and str(app.dl_btn["state"]) == "disabled", "all off must disable Download"
+    row.txt_q.current(2); row._choice_changed(); app.update()
+    assert row.choices() == (None, None, ("en-orig", True)), row.choices()
+    assert row.txt_q.get() == _t("fmt_auto", lang="en") and str(app.dl_btn["state"]) != "disabled"
+    row.mp4_q.current(1)
+    assert row.choices()[0] == 1080
+    row.mp4_q.current(0); row.mp3_q.current(1); row.txt_q.current(0); row._choice_changed()
+    assert core.vtt_to_text("WEBVTT\n\n00:00.000 --> 00:01.000\na<00:00.5><c> b</c>\n\n00:01.000 --> 00:02.000\na b\nc &amp; d\n") == "a b\nc & d\n"
+
+
 def _selftest_min_size(app: App) -> None:
-    """At the minimum size, with both quality lists open, every control gets the width it asks for."""
+    """At the minimum size, every control gets the width it asks for."""
     row = app.rows[0]
-    row.mp4_on.set(True); row._sync()
+    row.mp4_q.current(1); row.txt_q.current(2); row._sync()
     app.geometry("%dx%d" % MIN_SIZE); app.update(); app.update()
     cut = [w for w in (app.dl_btn, app.add_btn, app.info_btn, app.help_btn, *row.w)
            if w.winfo_ismapped() and w is not row.title and w.winfo_width() < w.winfo_reqwidth()]
@@ -926,7 +960,7 @@ def _selftest_min_size(app: App) -> None:
     right = app.winfo_rootx() + app.winfo_width()
     assert all(w.winfo_rootx() + w.winfo_width() <= right for w in row.w), "a column runs past the window"
     assert row.title.winfo_width() >= TITLE_MIN_PX, "no room left for the title"
-    row.mp4_on.set(False); row._sync()
+    row.mp4_q.current(0); row.txt_q.current(0); row._sync()
 
 
 def _selftest_long_folder(app: App) -> None:
@@ -946,9 +980,9 @@ def _selftest_done_row(app: App, row: Row) -> None:
     """A done row is not downloaded again; ticking a format makes it ready again (#11)."""
     row.finish([]); app.update()
     assert not row.wants() and str(app.dl_btn["state"]) == "disabled", "Download would repeat a finished row"
-    row.mp4_on.set(True); row._choice_changed(); app.update()
-    assert not row.done and row.wants() and str(app.dl_btn["state"]) != "disabled", "ticking a format did not re-arm the row"
-    row.mp4_on.set(False); row._choice_changed()
+    row.mp4_q.current(1); row._choice_changed(); app.update()
+    assert not row.done and row.wants() and str(app.dl_btn["state"]) != "disabled", "choosing a format did not re-arm the row"
+    row.mp4_q.current(0); row._choice_changed()
 
 
 def _selftest_clear_completed(app: App, row: Row, saved: Path) -> None:
