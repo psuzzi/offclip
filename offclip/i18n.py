@@ -19,7 +19,8 @@ LANGUAGES = {"en": "English", "it": "Italiano", "de": "Deutsch", "fr": "Françai
              "uk": "Українська", "fa": "فارسی", "ja": "日本語", "ko": "한국어", "zh": "简体中文", "zh-tw": "繁體中文",
              "hi": "हिन्दी", "id": "Bahasa Indonesia", "vi": "Tiếng Việt"}
 
-RTL = {"ar", "fa"}            # right-to-left scripts: Tk on X11 (Linux) does not reorder them, see gui.App._check_script
+RTL = {"ar", "fa"}            # right-to-left scripts
+SHAPED = RTL | {"hi"}         # scripts that need bidi or shaping, which Tk on X11 (Linux) does not do: gui.App._check_script
 
 STRINGS = {
     "en": {

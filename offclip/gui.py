@@ -345,14 +345,15 @@ class App(tk.Tk):
         """English when this Tk cannot show the language's script: a blank or garbled window is worse than English.
         - The private Python on Linux has a Tk with X11 core fonts only (no Xft): Cyrillic, Arabic and CJK glyphs
           measure 0 pixels there (#14).
-        - Tk on X11 does no bidi: Arabic and Persian come out letter-reversed. Windows and macOS reorder them."""
+        - Tk on X11 does no bidi and no shaping: Arabic and Persian come out letter-reversed, Hindi with its vowel
+          signs after the consonant. Windows and macOS do both."""
         code = i18n.current()
         font = tkfont.nametofont("TkDefaultFont")
         if any(font.measure(c) == 0 for c in i18n.LANGUAGES[code] if unicodedata.category(c).startswith("L")):
             self.log(f"language {code}: the font {font.actual('family')} cannot draw it, using English")
             i18n.set_language("en")
-        elif code in i18n.RTL and self.tk.call("tk", "windowingsystem") == "x11":
-            self.log(f"language {code}: right-to-left text is not supported by Tk on X11, using English")
+        elif code in i18n.SHAPED and self.tk.call("tk", "windowingsystem") == "x11":
+            self.log(f"language {code}: Tk on X11 cannot reorder or shape this script, using English")
             i18n.set_language("en")
 
     # -- layout --------------------------------------------------------------
