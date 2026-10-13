@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.13 — 2026-10-14
+
+- **Five new languages**: Russian, Turkish, Arabic, Ukrainian and Persian, machine-assisted; corrections from native
+  speakers are welcome (#8).
+- Arabic and Persian read right-to-left on Windows and macOS; the window keeps its left-to-right layout. On Linux, Tk
+  does not reorder right-to-left text, so offclip uses English for them there.
+- When the window cannot draw a language's script (the private Python on Linux has no Cyrillic, Arabic or CJK fonts),
+  offclip uses English instead of showing empty labels (#14).
+
 ## 1.1.12 — 2026-10-14
 
 - **Six new languages**: German, French, Spanish, Portuguese (one dictionary for Portugal and Brazil), Dutch and
