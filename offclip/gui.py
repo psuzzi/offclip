@@ -331,13 +331,24 @@ class App(tk.Tk):
         self.title(f"offclip {__version__}")
         self.minsize(*MIN_SIZE)
         self.settings = core.load_settings()
+        self.lines: List[str] = []                     # in-memory log for the report dialog
         i18n.set_language(language or self.settings.get("language", "auto"))   # `language`: the selftest's override
+        self._check_script()
         self.outdir = self.settings.get("outdir") or core.default_outdir()
         self.rows: List[Row] = []
         self.busy = False
-        self.lines: List[str] = []                     # in-memory log for the report dialog
         self._build()
         self.auto_check = self.after(1500, lambda: self.check_updates(auto=True))
+
+    def _check_script(self) -> None:
+        """English when the UI font has no glyphs for the language's script: a blank window is worse than English.
+        Happens with the private Python on Linux, whose Tk has only X11 core fonts (no Xft): Cyrillic, Arabic and CJK
+        measure 0 pixels there."""
+        code = i18n.current()
+        font = tkfont.nametofont("TkDefaultFont")
+        if any(font.measure(c) == 0 for c in i18n.LANGUAGES[code] if not c.isspace()):
+            self.log(f"language {code}: the font {font.actual('family')} cannot draw it, using English")
+            i18n.set_language("en")
 
     # -- layout --------------------------------------------------------------
     def _pick_theme(self) -> None:
@@ -839,7 +850,7 @@ def selftest() -> None:
     _selftest_clear_completed(app, row, Path(tempfile.mkdtemp()) / "Big Buck Bunny [aqz-KE-bpKQ].mp3")
     _selftest_paste_hint(app)
     app.info_btn.set_colors(INFO_UPDATE); app.update()
-    app.after(1000, app.destroy)
+    app.after(1000, lambda: _selftest_close(app))   # also cancels the update check: Tcl timers outlive the window
     app.mainloop()
     _selftest_languages()
     print("selftest ok:", core.versions(), "| drag and drop:", "yes" if app.dnd_ok else "no", "| language:", i18n.detect_language())
@@ -916,9 +927,14 @@ def _selftest_languages() -> None:
     assert not bad, "i18n: " + "; ".join(bad)
     i18n.set_language("it")
     assert _t("download") == "Scarica" and _status_text("retrying 1/2") == "nuovo tentativo (1/2)…"
+    skipped = []
     for code in i18n.LANGUAGES:
         app = App(language=code)
         app.after_cancel(app.auto_check)              # no network from these windows
+        if i18n.current() != code:                    # this Tk cannot draw the script (see App._check_script)
+            skipped.append(code)
+            _selftest_close(app)
+            continue
         row = _selftest_row(app, "https://youtu.be/aqz-KE-bpKQ")
         app.update()
         try:
@@ -927,8 +943,17 @@ def _selftest_languages() -> None:
             _selftest_paste_hint(app)
         except AssertionError as e:
             raise AssertionError(f"[{code}] {e}") from None
-        app.destroy()
+        _selftest_close(app)
+    if skipped:
+        print("selftest: the UI font here cannot draw", ", ".join(skipped), "- those fall back to English")
     i18n.set_language("en")
+
+
+def _selftest_close(app: App) -> None:
+    """Destroy a test window without leaving queued after/after_idle callbacks to fire into a dead window."""
+    for job in app.tk.splitlist(app.tk.call("after", "info")):
+        app.after_cancel(job)
+    app.destroy()
 
 
 def _selftest_status_fits(app: App, row: Row) -> None:
