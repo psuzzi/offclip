@@ -940,7 +940,10 @@ def _selftest_formats(app: App, row: Row) -> None:
     assert row.choices() == (None, 128, None), row.choices()
     row.mp3_q.current(0); row._choice_changed(); app.update()
     assert not row.wants() and str(app.dl_btn["state"]) == "disabled", "all off must disable Download"
-    row.txt_q.current(2); row._choice_changed(); app.update()
+    auto_en = row.txt_keys.index(("en-orig", True))        # position depends on the UI language: look it up
+    if i18n.current() == "en":
+        assert auto_en == 1, f"the UI language should come first: {row.txt_keys}"
+    row.txt_q.current(auto_en); row._choice_changed(); app.update()
     assert row.choices() == (None, None, ("en-orig", True)), row.choices()
     assert row.txt_q.get() == _t("fmt_auto", lang="en") and str(app.dl_btn["state"]) != "disabled"
     row.mp4_q.current(1)
