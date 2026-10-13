@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.15 — 2026-10-14
+
+- *Help ▸ Language*: each language shows a small grey badge with its code (EN, DE, ZH, TW…) before its name.
+
 ## 1.1.14 — 2026-10-14
 
 - **Seven new languages**: Japanese, Korean, Chinese (Simplified and Traditional), Hindi, Indonesian and Vietnamese,
