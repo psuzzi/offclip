@@ -1,0 +1,77 @@
+name: release
+# Push a tag vX.Y.Z and this builds every asset, tests the packages, and publishes the release marked latest.
+# Any failed job means no release. See RELEASING.md.
+on:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  # Fail fast, before any build: the tag must match __version__ and CHANGELOG must have a section for it.
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: tag matches __version__, CHANGELOG has the section
+        run: scripts/release-check.sh "${{ github.ref_name }}"
+
+  zips:
+    needs: guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: build the four ZIPs
+        run: |
+          scripts/build-release.sh "${{ github.ref_name }}"
+          rm -f dist/SHA256SUMS dist/notes-header.md   # publish writes both over all assets
+          ls -la dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zips
+          path: dist/*
+
+  # linux (deb + rpm, installed and run on Ubuntu and Fedora) and windows (exe, silent install/run/uninstall)
+  packages:
+    needs: guard
+    uses: ./.github/workflows/packages.yml
+    with:
+      tag: ${{ github.ref_name }}
+
+  publish:
+    needs: [guard, zips, packages]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: guard again
+        run: scripts/release-check.sh "${{ github.ref_name }}"
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: assets and SHA256SUMS
+        run: |
+          TAG="${{ github.ref_name }}"; VER="${TAG#v}"
+          cd dist
+          for f in "offclip-$VER.zip" offclip-windows.zip offclip-macos.zip offclip-linux.zip \
+                   "offclip-$VER.deb" "offclip-$VER.rpm" offclip-setup.exe; do
+            [ -s "$f" ] || { echo "missing asset: $f"; ls -la; exit 1; }
+          done
+          sha256sum offclip-* > SHA256SUMS
+          cat SHA256SUMS
+          [ "$(ls | wc -l)" -eq 8 ] || { echo "expected 8 assets"; ls -la; exit 1; }
+      - name: notes
+        run: scripts/release-notes.sh "${{ github.ref_name }}" > notes.md && cat notes.md
+      - name: create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          gh release create "$TAG" dist/* --verify-tag --latest --title "offclip ${TAG#v}" --notes-file notes.md

@@ -1,6 +1,7 @@
 # offclip
 
 [![tests](https://github.com/psuzzi/offclip/actions/workflows/test.yml/badge.svg)](https://github.com/psuzzi/offclip/actions/workflows/test.yml)
+[![release](https://img.shields.io/github/v/release/psuzzi/offclip)](https://github.com/psuzzi/offclip/releases/latest)
 
 Save public audio and video clips for personal, offline listening and viewing.
 

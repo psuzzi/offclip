@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.10 — 2026-10-13
+
+- Release pipeline: releases are now built and published by CI from a tag; no functional change.
+
 ## 1.1.9 — 2026-10-12
 
 - **Layout**: the paste field, the table and *Download* sit together in one raised card; the paste field shows a hint;

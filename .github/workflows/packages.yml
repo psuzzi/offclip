@@ -1,10 +1,18 @@
 name: packages
+# Builds and install-tests offclip-<ver>.deb, offclip-<ver>.rpm and offclip-setup.exe.
+# Runs by itself on manual dispatch and when the packaging files change; release.yml calls it for every tag.
 on:
   workflow_dispatch:
     inputs:
       tag:
         description: "Tag to build (default: newest tag)"
         required: false
+  workflow_call:
+    inputs:
+      tag:
+        description: "Tag to build"
+        type: string
+        required: true
   push:
     branches: [main]
     paths:
@@ -27,7 +35,7 @@ jobs:
       - name: pick ref
         id: tag
         run: |
-          TAG="${{ github.event.inputs.tag }}"
+          TAG="${{ inputs.tag }}"
           if [ -z "$TAG" ]; then
             if [ "${{ github.event_name }}" = "push" ]; then TAG="${{ github.sha }}"; else TAG="$(git describe --tags --abbrev=0)"; fi
           fi
@@ -76,7 +84,7 @@ jobs:
         id: tag
         shell: bash
         run: |
-          TAG="${{ github.event.inputs.tag }}"
+          TAG="${{ inputs.tag }}"
           if [ -z "$TAG" ]; then
             if [ "${{ github.event_name }}" = "push" ]; then TAG="${{ github.sha }}"; else TAG="$(git describe --tags --abbrev=0)"; fi
           fi
