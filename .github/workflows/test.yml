@@ -2,6 +2,21 @@ name: test
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
+  # Pure logic (captions, slides pipeline): offline, fast, on the oldest and the newest Python offclip supports.
+  unit:
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.12"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: unit tests
+        run: python -B -m unittest discover -s tests -v
+
   # A machine that already has a Python with Tkinter: the bootstrap must use it and download only yt-dlp (+ ffmpeg).
   system-python:
     strategy:
