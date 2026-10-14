@@ -135,7 +135,8 @@ class Clip:
 
 
 def _ydl_opts(extra: Optional[dict] = None) -> dict:
-    opts = {"quiet": True, "no_warnings": True, "noprogress": True, "noplaylist": True}
+    opts = {"quiet": True, "no_warnings": True, "noprogress": True, "noplaylist": True,
+            "socket_timeout": 30}                       # a stalled connection fails instead of hanging a row
     if ffmpeg_path():
         opts["ffmpeg_location"] = ffmpeg_path()
     if extra:
@@ -143,17 +144,33 @@ def _ydl_opts(extra: Optional[dict] = None) -> dict:
     return opts
 
 
+class NotAVideo(ValueError):
+    """The link is a channel or a playlist, not a single video. kind: "channel" or "playlist"."""
+
+    def __init__(self, kind: str):
+        self.kind = kind
+        super().__init__(f"this is a {kind} link, not a video: open one video and use its link")
+
+
+def _link_kind(url: str, info: dict) -> str:
+    ident = str(info.get("id") or "")
+    if any(k in url for k in ("/@", "/channel/", "/c/", "/user/")) or ident.startswith(("UC", "@")):
+        return "channel"
+    return "playlist"
+
+
 def probe(url: str) -> Clip:
-    """Fetch metadata without downloading."""
+    """Fetch metadata without downloading. Raises NotAVideo for channel and playlist links."""
     import yt_dlp  # imported lazily so `--version` works even if yt-dlp is broken
 
-    with yt_dlp.YoutubeDL(_ydl_opts({"skip_download": True})) as ydl:
+    # Flat and lazy: for a channel or playlist link yt-dlp would otherwise resolve every video in it, one request
+    # each (thousands for a channel), and the row would sit at "fetching info…" for minutes (#17).
+    # A video link, also watch?v=…&list=…, is extracted in full as before.
+    flat = {"skip_download": True, "extract_flat": "in_playlist", "lazy_playlist": True, "playlistend": 1}
+    with yt_dlp.YoutubeDL(_ydl_opts(flat)) as ydl:
         info = ydl.extract_info(url, download=False)
-    if info.get("_type") == "playlist":                     # a playlist URL: take the first entry
-        entries = [e for e in (info.get("entries") or []) if e]
-        if not entries:
-            raise ValueError("Empty playlist")
-        info = entries[0]
+    if info.get("_type") in ("playlist", "multi_video"):
+        raise NotAVideo(_link_kind(url, info))
 
     formats = info.get("formats") or []
     heights = sorted({int(f["height"]) for f in formats

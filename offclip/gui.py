@@ -669,6 +669,8 @@ class App(tk.Tk):
         try:
             clip = core.probe(row.url)
             self.after(0, row.fill, clip)
+        except core.NotAVideo as e:
+            self.after(0, row.fail, _t("err_" + e.kind))
         except Exception as e:
             self.after(0, row.fail, str(e).splitlines()[0][:200])
 
@@ -949,6 +951,8 @@ def _selftest_formats(app: App, row: Row) -> None:
     row.mp4_q.current(1)
     assert row.choices()[0] == 1080
     row.mp4_q.current(0); row.mp3_q.current(1); row.txt_q.current(0); row._choice_changed()
+    for kind in ("channel", "playlist"):                    # #17: the probe's NotAVideo maps to a translated message
+        assert core.NotAVideo(kind).kind == kind and _t("err_" + kind) != "err_" + kind
     assert core.vtt_to_text("WEBVTT\n\n00:00.000 --> 00:01.000\na<00:00.5><c> b</c>\n\n00:01.000 --> 00:02.000\na b\nc &amp; d\n") == "a b\nc & d\n"
 
 
