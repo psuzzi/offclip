@@ -8,7 +8,23 @@ from typing import List, Optional
 from . import __version__, core
 
 
+_OPTIONAL_VALUE = {"--mp4": "0", "--mp3": "0", "--txt": ""}     # flag -> what it means without a value
+
+
+def _links_are_not_values(argv: List[str]) -> List[str]:
+    """`--txt LINK` would give the link to --txt as its language (argparse takes any next word that does not start
+    with "-"), `--mp4 LINK` fails as "invalid int". A link is never a flag's value: languages, heights and bitrates
+    have no "/" or ".". So write the flag as `--txt=` (no value) and keep the link a link (#33)."""
+    out = list(argv)
+    for i, arg in enumerate(out[:-1]):
+        nxt = out[i + 1]
+        if arg in _OPTIONAL_VALUE and ("/" in nxt or "." in nxt):
+            out[i] = f"{arg}={_OPTIONAL_VALUE[arg]}"
+    return out
+
+
 def _parse(argv: List[str]) -> argparse.Namespace:
+    argv = _links_are_not_values(argv)
     p = argparse.ArgumentParser(prog="offclip", description="Save public audio/video clips for personal offline use.")
     p.add_argument("urls", nargs="*", metavar="URL")
     p.add_argument("--mp4", nargs="?", const=0, type=int, metavar="HEIGHT",
