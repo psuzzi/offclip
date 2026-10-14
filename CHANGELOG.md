@@ -4,6 +4,10 @@
 
 - Work in progress: Markdown slide decks from a video (`--slides`). Not released yet.
 
+## 1.1.18 — unreleased
+
+- **Command line:** a link right after `--txt`, `--mp4` or `--mp3` is a link again, not the flag's value. `./run.sh --txt LINK` said "give at least one URL" and `--mp4 LINK` "invalid int value" (#33).
+
 ## 1.1.17 — 2026-10-14
 
 - **Channel and playlist links** are recognised in about a second and the row says so ("Channel link, not a video: open a video and use its link"). Before, a channel link sat at *fetching info…* for minutes while every video in it was looked up (#17).
