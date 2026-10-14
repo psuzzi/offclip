@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.16 — 2026-10-14
+
+- **Three dropdowns per row: MP4, MP3, TXT.** The first entry of each is *off*; the others are what the video offers. Defaults unchanged: MP3 on at the best bitrate, MP4 off.
+- **Transcripts (TXT):** save the captions as a plain-text file next to your downloads, without timestamps or repeated lines. The uploader's subtitles are listed first, then YouTube's automatic captions in the video's original language, marked *auto*; your interface language comes first.
+- Command line: `--txt [LANG]` saves a transcript; `--info` lists the caption languages.
+
 ## 1.1.15 — 2026-10-14
 
 - *Help ▸ Language*: each language shows a small grey badge with its code (EN, DE, ZH, TW…) before its name.
