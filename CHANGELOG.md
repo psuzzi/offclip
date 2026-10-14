@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.17 — 2026-10-14
+
+- **Channel and playlist links** are recognised in about a second and the row says so ("Channel link, not a video: open a video and use its link"). Before, a channel link sat at *fetching info…* for minutes while every video in it was looked up (#17).
+- A video opened from inside a playlist (`watch?v=…&list=…`) works as before.
+- Network timeout: a stalled connection now fails after 30 seconds instead of hanging a row.
+
 ## 1.1.16 — 2026-10-14
 
 - **Three dropdowns per row: MP4, MP3, TXT.** The first entry of each is *off*; the others are what the video offers. Defaults unchanged: MP3 on at the best bitrate, MP4 off.
