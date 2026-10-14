@@ -123,6 +123,10 @@ class Clip:
     video_heights: List[int] = field(default_factory=list)   # e.g. [1080, 720, 480, 360]
     audio_kbps: List[int] = field(default_factory=list)      # source audio bitrates, e.g. [160, 128, 70, 50]
     captions: List[Tuple[str, bool]] = field(default_factory=list)   # (yt-dlp language key, automatic?), best first
+    chapters: List[Tuple[float, float, str]] = field(default_factory=list)   # (start s, end s, title) from the uploader
+    license: str = ""                                    # as the site states it, e.g. "Creative Commons Attribution license (reuse allowed)"
+    webpage_url: str = ""                                # canonical page of the video
+    extractor: str = ""                                  # yt-dlp extractor key, lower case: "youtube", "vimeo", …
 
     def mp3_choices(self) -> List[int]:
         """MP3 bitrates worth offering: the standard one matching each source bitrate (129 -> 128, 66 -> 64)."""
@@ -185,8 +189,20 @@ def probe(url: str) -> Clip:
     return Clip(
         url=url, id=vid, title=info.get("title") or "", channel=info.get("channel") or info.get("uploader") or "",
         short_url=short, duration=int(info.get("duration") or 0), video_heights=heights, audio_kbps=kbps,
-        captions=captions,
+        captions=captions, chapters=chapters_of(info), license=info.get("license") or "",
+        webpage_url=info.get("webpage_url") or url, extractor=extractor,
     )
+
+
+def chapters_of(info: dict) -> List[Tuple[float, float, str]]:
+    """The uploader's chapters as (start, end, title), in time order; empty when the video has none."""
+    out = []
+    for c in info.get("chapters") or []:
+        try:
+            out.append((float(c["start_time"]), float(c.get("end_time") or c["start_time"]), str(c.get("title") or "").strip()))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return sorted(out)
 
 
 def caption_tracks(info: dict) -> List[Tuple[str, bool]]:
@@ -248,18 +264,38 @@ def _retryable(e: Exception) -> bool:
     return any(k in msg for k in _RETRYABLE)
 
 
-def download(clip: Clip, outdir: str, *, mp4_height: Optional[int] = None, mp3_kbps: Optional[int] = None,
-             txt: Optional[Tuple[str, bool]] = None, progress: Optional[Progress] = None) -> List[Path]:
-    """Download the selected renditions into `outdir`; returns the files written.
-
-    txt = (caption key, automatic?) from Clip.captions: saves "<title> [<id>].<lang>.txt", a plain-text transcript.
-    """
+def _extract(url: str, opts: dict, progress: Optional[Progress] = None) -> Tuple[dict, Path]:
+    """yt-dlp extract_info with retries; returns the info and the path of the (first) file it wrote."""
     import yt_dlp
 
-    out = Path(outdir).expanduser()
-    out.mkdir(parents=True, exist_ok=True)
-    written: List[Path] = []
+    # YouTube sometimes answers a brand-new stream URL with "HTTP Error 403: Forbidden" and serves the
+    # same video fine a moment later. Retry with a fresh extraction; on the second failure also drop
+    # yt-dlp's cache (a stale signature solver is the other classic cause).
+    last: Optional[Exception] = None
+    for attempt in range(1, ATTEMPTS + 1):
+        try:
+            with yt_dlp.YoutubeDL(_ydl_opts(opts)) as ydl:
+                if attempt >= 3:
+                    try:
+                        ydl.cache.remove()
+                    except Exception:
+                        pass
+                info = ydl.extract_info(url, download=True)
+                reqs = info.get("requested_downloads") or []
+                path = Path(reqs[0]["filepath"]) if reqs and reqs[0].get("filepath") else Path(ydl.prepare_filename(info))
+            return info, path
+        except Exception as e:                           # yt-dlp raises DownloadError and friends
+            last = e
+            if attempt == ATTEMPTS or not _retryable(e):
+                raise
+            if progress:
+                progress(None, f"retrying {attempt}/{ATTEMPTS - 1}")
+            time.sleep(2 * attempt)
+    raise last  # type: ignore[misc]                     # not reached: the last attempt raises
 
+
+def _out_opts(out: Path, progress: Optional[Progress] = None) -> dict:
+    """Where and how yt-dlp writes files, with its progress events turned into (fraction, text) for `progress`."""
     def hook(d: dict) -> None:
         if not progress:
             return
@@ -270,42 +306,47 @@ def download(clip: Clip, outdir: str, *, mp4_height: Optional[int] = None, mp3_k
         elif d.get("status") == "finished":
             progress(1.0, "processing")
 
-    base = {
+    return {
         "outtmpl": str(out / "%(title)s [%(id)s].%(ext)s"),
         "progress_hooks": [hook],
         "windowsfilenames": os.name == "nt",
         "overwrites": False,
     }
 
-    def run(opts: dict, suffix: str) -> dict:
-        # YouTube sometimes answers a brand-new stream URL with "HTTP Error 403: Forbidden" and serves the
-        # same video fine a moment later. Retry with a fresh extraction; on the second failure also drop
-        # yt-dlp's cache (a stale signature solver is the other classic cause).
-        last: Optional[Exception] = None
-        for attempt in range(1, ATTEMPTS + 1):
-            try:
-                with yt_dlp.YoutubeDL(_ydl_opts(dict(base, **opts))) as ydl:
-                    if attempt >= 3:
-                        try:
-                            ydl.cache.remove()
-                        except Exception:
-                            pass
-                    info = ydl.extract_info(clip.url, download=True)
-                    if not suffix:                       # caller handles the files (transcript)
-                        return info
-                    reqs = info.get("requested_downloads") or []
-                    path = Path(reqs[0]["filepath"]) if reqs and reqs[0].get("filepath") else Path(ydl.prepare_filename(info))
-                written.append(path.with_suffix(suffix) if not path.suffix == suffix else path)
-                return info
-            except Exception as e:                       # yt-dlp raises DownloadError and friends
-                last = e
-                if attempt == ATTEMPTS or not _retryable(e):
-                    raise
-                if progress:
-                    progress(None, f"retrying {attempt}/{ATTEMPTS - 1}")
-                time.sleep(2 * attempt)
-        if last:
-            raise last
+
+def fetch_captions(clip: Clip, track: Tuple[str, bool], outdir: str,
+                   progress: Optional[Progress] = None) -> Path:
+    """Save the caption track (key, automatic?) from Clip.captions as "<title> [<id>].<key>.vtt"; returns its path."""
+    key, automatic = track
+    out = Path(outdir).expanduser()
+    out.mkdir(parents=True, exist_ok=True)
+    info, _ = _extract(clip.url, dict(_out_opts(out, progress), **{
+        "skip_download": True,
+        "writesubtitles": not automatic,
+        "writeautomaticsub": automatic,
+        "subtitleslangs": [key],
+        "subtitlesformat": "vtt",
+    }), progress)
+    sub = ((info or {}).get("requested_subtitles") or {}).get(key) or {}
+    vtt = Path(sub["filepath"]) if sub.get("filepath") else None
+    if not vtt or not vtt.exists():
+        raise RuntimeError(f"no captions in '{caption_lang(key)}' for this video")
+    return vtt
+
+
+def download(clip: Clip, outdir: str, *, mp4_height: Optional[int] = None, mp3_kbps: Optional[int] = None,
+             txt: Optional[Tuple[str, bool]] = None, progress: Optional[Progress] = None) -> List[Path]:
+    """Download the selected renditions into `outdir`; returns the files written.
+
+    txt = (caption key, automatic?) from Clip.captions: saves "<title> [<id>].<lang>.txt", a plain-text transcript.
+    """
+    out = Path(outdir).expanduser()
+    out.mkdir(parents=True, exist_ok=True)
+    written: List[Path] = []
+
+    def run(opts: dict, suffix: str) -> None:
+        _, path = _extract(clip.url, dict(_out_opts(out, progress), **opts), progress)
+        written.append(path.with_suffix(suffix) if not path.suffix == suffix else path)
 
     if mp4_height:
         h = int(mp4_height)
@@ -321,20 +362,10 @@ def download(clip: Clip, outdir: str, *, mp4_height: Optional[int] = None, mp3_k
                                 "preferredquality": str(int(mp3_kbps))}],
         }, ".mp3")
     if txt:
-        key, automatic = txt
+        key, _automatic = txt
         if progress:
             progress(None, "processing")
-        info = run({
-            "skip_download": True,
-            "writesubtitles": not automatic,
-            "writeautomaticsub": automatic,
-            "subtitleslangs": [key],
-            "subtitlesformat": "vtt",
-        }, "")
-        sub = ((info or {}).get("requested_subtitles") or {}).get(key) or {}
-        vtt = Path(sub["filepath"]) if sub.get("filepath") else None
-        if not vtt or not vtt.exists():
-            raise RuntimeError(f"no captions in '{caption_lang(key)}' for this video")
+        vtt = fetch_captions(clip, txt, str(out), progress)
         stem = vtt.name[: -len(vtt.suffix)]                  # "<title> [<id>].<key>"
         stem = stem[: -len(key)] + caption_lang(key) if stem.endswith(key) else stem
         target = vtt.with_name(stem + ".txt")

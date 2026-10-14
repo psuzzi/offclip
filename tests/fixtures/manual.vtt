@@ -1,0 +1,22 @@
+WEBVTT
+
+1
+00:00:01.000 --> 00:00:04.000
+Binary search halves the range
+at every step.
+
+2
+00:00:04.500 --> 00:00:07.000
+That is why it runs in
+logarithmic time. Now, let&#39;s
+
+NOTE a comment block
+with two lines
+
+3
+00:00:07.000 --> 00:00:09.000
+<i>look at an example.</i>
+
+4
+00:00:20.000 --> 00:00:22.000
+[Music]
