@@ -200,13 +200,31 @@ def to_sentences(words: List[Word], *, pause: float = 0.7, max_words: int = 25) 
 
 
 def _main(argv: List[str]) -> int:
-    """Debug view: `python -m offclip.slides.transcript FILE.vtt` prints the sentences with their times."""
+    """Debug view: the sentences of a caption file, or of a video's captions, with their times.
+
+    python -m offclip.slides.transcript FILE.vtt
+    python -m offclip.slides.transcript LINK [LANG]     (needs yt-dlp: run it with offclip's venv Python)
+    """
     import sys
-    if len(argv) != 1:
-        print("usage: python -m offclip.slides.transcript FILE.vtt", file=sys.stderr)
+    import tempfile
+    if not 1 <= len(argv) <= 2:
+        print(_main.__doc__, file=sys.stderr)
         return 2
-    with open(argv[0], encoding="utf-8", errors="replace") as f:
-        words = vtt_to_words(f.read())
+    if "/" in argv[0] and not argv[0].lower().endswith(".vtt"):
+        from .. import core
+        clip = core.probe(argv[0])
+        tracks = [t for t in clip.captions if len(argv) < 2 or core.caption_lang(t[0]).split("-")[0] == argv[1]]
+        if not tracks:
+            print(f"no captions{' in ' + argv[1] if len(argv) > 1 else ''}; this video has: "
+                  f"{', '.join(k for k, _ in clip.captions) or 'none'}", file=sys.stderr)
+            return 1
+        print(f"-- {clip.title} · captions {tracks[0][0]}{' (automatic)' if tracks[0][1] else ''}", file=sys.stderr)
+        with tempfile.TemporaryDirectory() as d:
+            vtt = core.fetch_captions(clip, tracks[0], d).read_text("utf-8", errors="replace")
+    else:
+        with open(argv[0], encoding="utf-8", errors="replace") as f:
+            vtt = f.read()
+    words = vtt_to_words(vtt)
     sentences = to_sentences(words)
     try:
         for s in sentences:
@@ -217,7 +235,6 @@ def _main(argv: List[str]) -> int:
     print(f"-- {len(words)} words, {len(sentences)} sentences, {'punctuated' if is_punctuated(words) else 'split on pauses'}, "
           f"words per sentence: median {lengths[len(lengths) // 2]}, max {lengths[-1]}", file=sys.stderr)
     return 0
-
 
 if __name__ == "__main__":
     import sys
