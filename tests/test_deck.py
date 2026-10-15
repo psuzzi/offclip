@@ -41,7 +41,7 @@ class Text(unittest.TestCase):
         self.assertNotIn("Zach Peters?", b)
         self.assertEqual(b, [x for x in b if x in [text.clean(y.text, "en") for y in s]])   # spoken order, cleaned
         self.assertEqual(text.bullets([], "en"), [])
-        self.assertTrue(text.bullets(sents(" ".join(["word"] * 50)), "en", max_words=10)[0].endswith("…"))
+        self.assertTrue(text.bullets(sents(" ".join(f"word{i}" for i in range(50))), "en", max_words=10)[0].endswith("…"))
 
 
 class BestFrame(unittest.TestCase):

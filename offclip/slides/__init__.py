@@ -113,8 +113,10 @@ def make_deck(clip: core.Clip, outdir: str, *, lang: str = "", progress: Optiona
     shutil.rmtree(images, ignore_errors=True)                  # a rerun replaces the pictures
     slides: List[deck.Slide] = []
     part = 0
+    per_section = [[s for s in sentences if sec.start <= s.start < sec.end] for sec in secs]
+    talk = text.Talk(per_section, key)                         # key terms: frequent here, rare elsewhere
     for n, sec in enumerate(secs, 1):
-        said = [s for s in sentences if sec.start <= s.start < sec.end]
+        said = per_section[n - 1]
         part = part + 1 if n > 1 and sec.chapter and sec.chapter == secs[n - 2].chapter else 1
         image = ""
         if stats and video is not None and ffmpeg:
@@ -127,7 +129,8 @@ def make_deck(clip: core.Clip, outdir: str, *, lang: str = "", progress: Optiona
             except RuntimeError as e:
                 warnings.append(str(e))
         slides.append(deck.Slide(
-            heading=text.heading(said, key, chapter=sec.chapter if sec.chapter else "", part=part),
+            heading=text.heading(said, key, chapter=sec.chapter, part=part,
+                                 keys=talk.key_terms(n - 1) if part > 1 or not sec.chapter else None),
             bullets=text.bullets(said, key, n=int(o["bullets"])),
             start=sec.start, end=sec.end, image=image, transcript=" ".join(s.text for s in said)))
 
