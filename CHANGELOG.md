@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.18 — unreleased
+## 1.1.18 — 2026-10-15
 
 - **Command line:** a link right after `--txt`, `--mp4` or `--mp3` is a link again, not the flag's value. `./run.sh --txt LINK` said "give at least one URL" and `--mp4 LINK` "invalid int value" (#33).
 
