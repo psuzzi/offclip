@@ -19,7 +19,7 @@ import operator
 import subprocess
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Tuple
 
 WIDTH, HEIGHT, FPS = 160, 90, 1.0
 STATS_FORMAT = 2                                   # bump when FrameStats changes meaning: old caches are recomputed
@@ -167,6 +167,40 @@ def visual_candidates(stats: List[FrameStats], *, k: float = 6.0, floor: float =
         cuts.append(VisualCut(stats[end].t, max(stats[i].diff for i in run) / threshold,
                               any(is_slide_like(f) for f in after), any(is_title_like(f) for f in after)))
     return cuts
+
+
+def best_frame(stats: List[FrameStats], start: float, end: float, *, margin: float = 0.1) -> float:
+    """The time of the frame that best illustrates [start, end): inside the middle 80% (no transitions), not black,
+    scored sharpness (relative to the video's median) + 1 if slide-like − motion (relative to the usual change).
+    The middle of the section when there are no frames there (or no stats at all)."""
+    lo = start + (end - start) * margin
+    hi = end - (end - start) * margin
+    inside = [i for i, s in enumerate(stats) if lo <= s.t <= hi and s.mean > 16]
+    if not inside:
+        return (start + end) / 2
+    sharp_med = _median([s.sharp for s in stats]) or 1.0
+    diff_med = max(_median([s.diff for s in stats[1:]]), 2.0)
+
+    def score(i: int) -> Tuple[float, float]:
+        s = stats[i]
+        nxt = stats[i + 1].diff if i + 1 < len(stats) else s.diff
+        motion = (s.diff + nxt) / 2                    # change into and out of this frame: mid-animation is high
+        value = (min(2.0, s.sharp / sharp_med) + (1.0 if is_slide_like(s) else 0.0)
+                 - min(2.0, motion / (4 * diff_med)))
+        return value, -abs(s.t - (start + end) / 2)    # ties: nearer the middle
+
+    return stats[max(inside, key=score)].t
+
+
+def grab_jpeg(video: Path, t: float, out: Path, ffmpeg: str, *, width: int = 1280, quality: int = 3) -> Path:
+    """One full-resolution frame at `t` seconds as JPEG, at most `width` pixels wide (never enlarged)."""
+    out.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [ffmpeg, "-nostdin", "-v", "error", "-y", "-ss", f"{max(0.0, t):.3f}", "-i", str(video), "-frames:v", "1",
+           "-vf", f"scale='min({width},iw)':-2", "-q:v", str(quality), str(out)]
+    r = subprocess.run(cmd, capture_output=True)
+    if r.returncode != 0 or not out.exists():
+        raise RuntimeError(f"ffmpeg could not take a picture at {t:.0f} s: {r.stderr.decode('utf-8', 'replace')[-200:]}")
+    return out
 
 
 def _main(argv: List[str]) -> int:

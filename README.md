@@ -134,11 +134,44 @@ for example `because: Python 3.12.1 at /usr/local/bin/python3 has no Tkinter`.
 ./run.sh --mp4 --mp3 192 URL       # best MP4 plus a 192 kbps MP3
 ./run.sh --info URL                # show title, channel and available qualities, download nothing
 ./run.sh --txt URL                 # plain-text transcript from the captions (--txt it for Italian)
+./run.sh --slides URL              # a Markdown study deck: slides.md + images (see Slides below)
 ./run.sh -o ~/Music URL1 URL2      # choose the folder (remembered) and queue several links
 ./run.sh --version                 # component versions, useful in bug reports
 ```
 
 On Windows use `run.bat` instead of `./run.sh`. Files are named `Title [videoid].mp3` / `.mp4`.
+
+## Slides (command line, experimental)
+
+Turn a talk, lecture or tutorial into a study deck you can skim, keep in your notes and present:
+
+```
+./run.sh --slides URL              # a deck from the captions and the video
+./run.sh --slides it URL           # use the Italian captions
+./run.sh --mp4 --slides URL        # keep the video too (the deck reuses it)
+```
+
+You get a folder next to your downloads, named like them:
+
+```
+Title [videoid]/
+  slides.md      one slide per part of the talk: heading, picture, key sentences, a link that plays from there,
+                 and the full transcript of that part folded underneath
+  images/        one picture per slide, chosen to show the slide or the board rather than the speaker
+  meta.json      where it came from and the settings used
+```
+
+`slides.md` reads well on GitHub and in Markdown notes apps (Obsidian, VS Code…), and it is also a
+[Marp](https://marp.app/) deck: open it with Marp to present it or export it to PDF or PowerPoint.
+
+How it works: the captions are the backbone (every video has speech, not every video has slides). offclip looks for
+where a new part starts (the uploader's chapters, slide changes in the picture, a change of vocabulary, phrases like
+"now let's…", pauses), keeps every part between 30 seconds and 2 minutes, and picks the clearest frame of each part.
+Everything runs on your computer, without any account or online service, and needs nothing more than offclip already has.
+
+Limits for now: the video needs captions (uploaded or automatic); automatic captions have no punctuation, so the
+sentences on such slides are spoken fragments. Settings (part lengths, bullets per slide, picture width) can be
+changed in the `"slides"` block of `settings.json`; the defaults are listed in `meta.json`.
 
 ## Where things go
 
@@ -185,7 +218,9 @@ if needed, and once a day to ask whether a newer offclip exists). Set `"check_up
 
 offclip is for saving content you are allowed to keep for personal use: your own uploads,
 public-domain and Creative Commons material, and content whose owner permits offline copies.
-It does not and will not circumvent DRM or access paid or private content. Respect copyright
+It does not and will not circumvent DRM or access paid or private content. Decks made with `--slides` are personal
+study notes: do not publish or share decks of content you have no rights to; each deck records the source and,
+when the site states one, its license. Respect copyright
 and the terms of service of the sites you use. The software is provided as is, without warranty,
 and the author takes no responsibility for how it is used.
 

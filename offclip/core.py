@@ -198,8 +198,11 @@ def chapters_of(info: dict) -> List[Tuple[float, float, str]]:
     """The uploader's chapters as (start, end, title), in time order; empty when the video has none."""
     out = []
     for c in info.get("chapters") or []:
+        title = str(c.get("title") or "").strip()
+        if re.fullmatch(r"<Untitled Chapter \d+>", title):     # YouTube's placeholder when the first one has no title
+            title = ""
         try:
-            out.append((float(c["start_time"]), float(c.get("end_time") or c["start_time"]), str(c.get("title") or "").strip()))
+            out.append((float(c["start_time"]), float(c.get("end_time") or c["start_time"]), title))
         except (KeyError, TypeError, ValueError):
             continue
     return sorted(out)
@@ -312,6 +315,15 @@ def _out_opts(out: Path, progress: Optional[Progress] = None) -> dict:
         "windowsfilenames": os.name == "nt",
         "overwrites": False,
     }
+
+
+def file_stem(clip: Clip) -> str:
+    """The name offclip's downloads of this clip get, without extension: "Title [id]" exactly as yt-dlp writes it
+    on this system (so a deck folder sits next to "Title [id].mp4" with the same spelling)."""
+    import yt_dlp
+    with yt_dlp.YoutubeDL(_ydl_opts(_out_opts(Path(".")))) as ydl:
+        name = ydl.prepare_filename({"id": clip.id, "title": clip.title, "ext": "mp4"})
+    return Path(name).stem
 
 
 def fetch_captions(clip: Clip, track: Tuple[str, bool], outdir: str,

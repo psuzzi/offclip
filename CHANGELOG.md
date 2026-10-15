@@ -2,7 +2,12 @@
 
 ## 1.2.0 — unreleased (branch `beta`)
 
-- Work in progress: Markdown slide decks from a video (`--slides`). Not released yet.
+- **Slides (command line, experimental):** `./run.sh --slides URL` turns a video into a Markdown study deck: one folder
+  per video with `slides.md` (heading, picture, key sentences, a link that plays from that moment, the transcript
+  folded underneath), `images/` and `meta.json`. The deck is also a Marp deck, ready to present or export. Parts are
+  found from the uploader's chapters, slide changes, topic changes, cue phrases and pauses, kept between 30 s and
+  2 min. Everything runs locally with what offclip already has; about 30 s for an hour of video (#19–#23).
+- `--slides LANG` picks the caption language; an MP4 saved in the same folder is reused.
 
 ## 1.1.18 — unreleased
 
