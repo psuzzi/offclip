@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.0 — unreleased (branch `beta`)
+
+- Work in progress: better pictures (#25), tuning (#26), playlists (#27), speech-to-text (#29).
+
 ## 1.2.0 — 2026-10-15
 
 - **Slides (new, experimental): turn a video into a study deck.** Each row has a fourth list, *Slides*: choose a
