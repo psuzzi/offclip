@@ -1,14 +1,20 @@
 # Changelog
 
-## 1.2.0 — unreleased (branch `beta`)
+## 1.2.0 — 2026-10-15
 
-- **Slides (command line, experimental):** `./run.sh --slides URL` turns a video into a Markdown study deck: one folder
-  per video with `slides.md` (heading, picture, key sentences, a link that plays from that moment, the transcript
-  folded underneath), `images/` and `meta.json`. The deck is also a Marp deck, ready to present or export. Parts are
-  found from the uploader's chapters, slide changes, topic changes, cue phrases and pauses, kept between 30 s and
-  2 min. Everything runs locally with what offclip already has; about 30 s for an hour of video (#19–#23).
-- `--slides LANG` picks the caption language; an MP4 saved in the same folder is reused.
-- **Slides in the window:** a fourth list per row, *Slides*, next to MP4, MP3 and TXT: choose a caption language and press *Download*; *open* shows the deck. The smallest window is a little wider (1040 px) to make room (#28).
+- **Slides (new, experimental): turn a video into a study deck.** Each row has a fourth list, *Slides*: choose a
+  caption language and press *Download*. You get a folder named like the video with `slides.md` (one slide per part of
+  the talk: a heading, the clearest picture of that part, its key sentences, a link that plays the video from there,
+  and the full transcript folded underneath) and an `images/` folder. It reads well on GitHub and in Markdown notes
+  apps, and opens as a presentation in [Marp](https://marp.app/) (PDF or PowerPoint export).
+- How the parts are found: the uploader's chapters, slide changes in the picture, changes of topic in what is said,
+  phrases like "now let's…", pauses; every part lasts between 30 seconds and 2 minutes. Everything runs on your
+  computer with what offclip already has: nothing new to install, about half a minute for an hour of video.
+- Needs captions (uploaded or automatic). With automatic captions, which have no punctuation, the sentences on a slide
+  are shown as spoken excerpts ("…like this…").
+- With *MP4* on as well, the deck reuses the saved video. Command line: `./run.sh --slides URL` (`--slides it URL`
+  for Italian captions).
+- The smallest window is a little wider (1040 px) to make room for the new list.
 
 ## 1.1.18 — 2026-10-15
 
