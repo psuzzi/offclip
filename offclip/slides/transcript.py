@@ -199,6 +199,40 @@ def to_sentences(words: List[Word], *, pause: float = 0.7, max_words: int = 25) 
     return out
 
 
+def vtt_language(vtt: str, name: str = "") -> str:
+    """The language of a caption file: its "Language:" header, else the key before .vtt in the name, else ""."""
+    m = re.search(r"^Language:\s*([\w-]+)", vtt[:500], re.M)
+    if m:
+        return m.group(1)
+    m = re.search(r"\.([a-z]{2,3}(?:-[\w]+)?)\.vtt$", name, re.I)
+    return m.group(1) if m else ""
+
+
+def load(source: str, lang: str = ""):
+    """Sentences of a caption file or of a video's captions: (sentences, caption language key, Clip or None).
+
+    For a link the first caption track in `lang` is used (any language when empty); LookupError when there is none.
+    Needs yt-dlp for links (offclip's venv Python).
+    """
+    import tempfile
+    from pathlib import Path
+    clip = None
+    if "/" in source and not source.lower().endswith(".vtt"):
+        from .. import core
+        clip = core.probe(source)
+        tracks = [t for t in clip.captions if not lang or core.caption_lang(t[0]).split("-")[0] == lang]
+        if not tracks:
+            raise LookupError(f"no captions{' in ' + lang if lang else ''}; this video has: "
+                              f"{', '.join(k for k, _ in clip.captions) or 'none'}")
+        key = tracks[0][0]
+        with tempfile.TemporaryDirectory() as d:
+            vtt = core.fetch_captions(clip, tracks[0], d).read_text("utf-8", errors="replace")
+    else:
+        vtt = Path(source).read_text("utf-8", errors="replace")
+        key = lang or vtt_language(vtt, source)
+    return to_sentences(vtt_to_words(vtt)), key, clip
+
+
 def _main(argv: List[str]) -> int:
     """Debug view: the sentences of a caption file, or of a video's captions, with their times.
 
@@ -206,33 +240,24 @@ def _main(argv: List[str]) -> int:
     python -m offclip.slides.transcript LINK [LANG]     (needs yt-dlp: run it with offclip's venv Python)
     """
     import sys
-    import tempfile
     if not 1 <= len(argv) <= 2:
         print(_main.__doc__, file=sys.stderr)
         return 2
-    if "/" in argv[0] and not argv[0].lower().endswith(".vtt"):
-        from .. import core
-        clip = core.probe(argv[0])
-        tracks = [t for t in clip.captions if len(argv) < 2 or core.caption_lang(t[0]).split("-")[0] == argv[1]]
-        if not tracks:
-            print(f"no captions{' in ' + argv[1] if len(argv) > 1 else ''}; this video has: "
-                  f"{', '.join(k for k, _ in clip.captions) or 'none'}", file=sys.stderr)
-            return 1
-        print(f"-- {clip.title} · captions {tracks[0][0]}{' (automatic)' if tracks[0][1] else ''}", file=sys.stderr)
-        with tempfile.TemporaryDirectory() as d:
-            vtt = core.fetch_captions(clip, tracks[0], d).read_text("utf-8", errors="replace")
-    else:
-        with open(argv[0], encoding="utf-8", errors="replace") as f:
-            vtt = f.read()
-    words = vtt_to_words(vtt)
-    sentences = to_sentences(words)
+    try:
+        sentences, key, clip = load(argv[0], argv[1] if len(argv) > 1 else "")
+    except LookupError as e:
+        print(e, file=sys.stderr)
+        return 1
+    if clip:
+        print(f"-- {clip.title} · captions {key}", file=sys.stderr)
     try:
         for s in sentences:
             print(f"{int(s.start // 60):3d}:{s.start % 60:05.2f} {s.end - s.start:5.1f}s  {s.text}")
     except BrokenPipeError:                          # piped into head
         return 0
     lengths = sorted(len(s.words) for s in sentences) or [0]
-    print(f"-- {len(words)} words, {len(sentences)} sentences, {'punctuated' if is_punctuated(words) else 'split on pauses'}, "
+    words = sum(lengths) if sentences else 0
+    print(f"-- {words} words, {len(sentences)} sentences, "
           f"words per sentence: median {lengths[len(lengths) // 2]}, max {lengths[-1]}", file=sys.stderr)
     return 0
 
