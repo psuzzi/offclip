@@ -1,0 +1,23 @@
+WEBVTT
+Kind: captions
+Language: en
+
+00:00:00.160 --> 00:00:02.869 align:start position:0%
+ 
+so<00:00:00.480><c> today</c><00:00:00.880><c> we&#39;re</c><00:00:01.120><c> going</c><00:00:01.680><c> to</c><00:00:02.200><c> talk</c>
+
+00:00:02.869 --> 00:00:02.879 align:start position:0%
+so today we're going to talk
+ 
+
+00:00:02.879 --> 00:00:05.990 align:start position:0%
+so today we're going to talk
+about<00:00:03.120><c> binary</c><00:00:03.600><c> search</c>
+
+00:00:05.990 --> 00:00:06.000 align:start position:0%
+about binary search
+ 
+
+00:00:06.000 --> 00:00:09.000 align:start position:0%
+about binary search
+[Music]<00:00:06.300><c> it</c><00:00:06.500><c> works</c><00:00:06.800><c> on</c><00:00:07.000><c> sorted</c><00:00:07.400><c> arrays</c>

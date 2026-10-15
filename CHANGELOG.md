@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.0 — unreleased (branch `beta`)
+
+- **Slides (command line, experimental):** `./run.sh --slides URL` turns a video into a Markdown study deck: one folder
+  per video with `slides.md` (heading, picture, key sentences, a link that plays from that moment, the transcript
+  folded underneath), `images/` and `meta.json`. The deck is also a Marp deck, ready to present or export. Parts are
+  found from the uploader's chapters, slide changes, topic changes, cue phrases and pauses, kept between 30 s and
+  2 min. Everything runs locally with what offclip already has; about 30 s for an hour of video (#19–#23).
+- `--slides LANG` picks the caption language; an MP4 saved in the same folder is reused.
+- **Slides in the window:** a fourth list per row, *Slides*, next to MP4, MP3 and TXT: choose a caption language and press *Download*; *open* shows the deck. The smallest window is a little wider (1040 px) to make room (#28).
+
 ## 1.1.18 — 2026-10-15
 
 - **Command line:** a link right after `--txt`, `--mp4` or `--mp3` is a link again, not the flag's value. `./run.sh --txt LINK` said "give at least one URL" and `--mp4 LINK` "invalid int value" (#33).

@@ -1,4 +1,4 @@
-"""Command line: `offclip [--mp4 [HEIGHT]] [--mp3 [KBPS]] [--txt [LANG]] [-o DIR] URL...`  (default: best-quality MP3)."""
+"""Command line: `offclip [--mp4 [HEIGHT]] [--mp3 [KBPS]] [--txt [LANG]] [--slides [LANG]] [-o DIR] URL...` (default: best MP3)."""
 from __future__ import annotations
 
 import argparse
@@ -8,7 +8,7 @@ from typing import List, Optional
 from . import __version__, core
 
 
-_OPTIONAL_VALUE = {"--mp4": "0", "--mp3": "0", "--txt": ""}     # flag -> what it means without a value
+_OPTIONAL_VALUE = {"--mp4": "0", "--mp3": "0", "--txt": "", "--slides": ""}     # flag -> what it means without a value
 
 
 def _links_are_not_values(argv: List[str]) -> List[str]:
@@ -33,10 +33,34 @@ def _parse(argv: List[str]) -> argparse.Namespace:
                    help="save audio as MP3; optional bitrate, e.g. 192 (default: best available)")
     p.add_argument("--txt", nargs="?", const="", metavar="LANG",
                    help="save the transcript as plain text, from the captions; optional language, e.g. en (default: the first available)")
+    p.add_argument("--slides", nargs="?", const="", metavar="LANG",
+                   help="make a Markdown study deck (slides.md + images) from the captions and the video; "
+                        "optional caption language (experimental)")
     p.add_argument("-o", "--out", metavar="DIR", help="destination folder (default: last used, or ~/Downloads)")
     p.add_argument("--info", action="store_true", help="only show title, channel and available qualities")
     p.add_argument("--version", action="store_true", help="show component versions and exit")
     return p.parse_args(argv)
+
+
+def _slides(clip: "core.Clip", outdir: str, lang: str) -> int:
+    """Make the deck of one clip; 1 on failure."""
+    from . import slides
+
+    def show(frac, text):
+        sys.stdout.write(f"\r   slides: {text:<24}")
+        sys.stdout.flush()
+
+    try:
+        d = slides.make_deck(clip, outdir, lang=lang, progress=show)
+    except Exception as e:                            # NoCaptions, network, ffmpeg: the message is what matters
+        sys.stdout.write("\r" + " " * 40 + "\r")
+        print(f"   !! slides: {e}", file=sys.stderr)
+        return 1
+    sys.stdout.write("\r" + " " * 40 + "\r")
+    for w in d.warnings:
+        print(f"   (slides: {w})", file=sys.stderr)
+    print(f"   -> {d.path}  ({d.slides} slides)")
+    return 0
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -51,7 +75,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     settings = core.load_settings()
     outdir = a.out or settings.get("outdir") or core.default_outdir()
-    if a.mp4 is None and a.mp3 is None and a.txt is None:
+    if a.mp4 is None and a.mp3 is None and a.txt is None and a.slides is None:
         a.mp3 = 0                                     # default: audio only, best quality
     failures = 0
     for url in a.urls:
@@ -81,7 +105,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 txt = want[0]
             else:
                 print(f"   (no captions{' in ' + a.txt if a.txt else ''}: no transcript)", file=sys.stderr)
-                if mp4 is None and mp3 is None:
+                if mp4 is None and mp3 is None and a.slides is None:
                     failures += 1
                     continue
 
@@ -90,13 +114,16 @@ def main(argv: Optional[List[str]] = None) -> int:
             sys.stdout.flush()
 
         try:
-            files = core.download(clip, outdir, mp4_height=mp4, mp3_kbps=mp3, txt=txt, progress=show)
-            sys.stdout.write("\r" + " " * 20 + "\r")
-            for f in files:
-                print(f"   -> {f}")
+            if mp4 or mp3 or txt:                     # first: a saved MP4 is then reused by --slides
+                files = core.download(clip, outdir, mp4_height=mp4, mp3_kbps=mp3, txt=txt, progress=show)
+                sys.stdout.write("\r" + " " * 20 + "\r")
+                for f in files:
+                    print(f"   -> {f}")
         except Exception as e:
             print(f"\n   !! {e}", file=sys.stderr)
             failures += 1
+        if a.slides is not None:
+            failures += _slides(clip, outdir, a.slides)
     if a.out:
         settings["outdir"] = outdir
         core.save_settings(settings)

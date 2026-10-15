@@ -51,10 +51,10 @@ BANNER_FG = "#1e3a8a"
 INFO_IDLE = ("#6b7280", "white")      # grey "i"
 INFO_UPDATE = ("#2563eb", "white")    # blue "i" when a newer version exists
 HELP_COLORS = ("#facc15", "#1f2937")  # yellow "?" with dark text
-MIN_SIZE = (960, 460)                 # smallest window; selftest checks that nothing is cut at this size
+MIN_SIZE = (1040, 460)                # smallest window; selftest checks that nothing is cut at this size
 TITLE_MIN_PX = 120                    # the Title column never gets narrower than this
-COLUMNS = 8                           # MP4, MP3, TXT, Link, Title, Channel, Status, ×
-TITLE_COL, STATUS_COL = 4, 6
+COLUMNS = 9                           # MP4, MP3, TXT, Slides, Link, Title, Channel, Status, ×
+TITLE_COL, STATUS_COL = 5, 7
 
 
 def _caption_label(key: str, automatic: bool) -> str:
@@ -227,6 +227,7 @@ class Row:
         self.done = False                            # True after a successful download: Clear completed removes it
         t, r = app.table, index + 1
         self.txt_keys: List[Optional[tuple]] = [None]   # parallel to the TXT list: (caption key, automatic?) per entry
+        self.slides_keys: List[Optional[tuple]] = [None]   # the same for SLIDES (#28): which captions a deck is made from
         self.w: List[tk.Widget] = []
 
         def add(widget, col, **grid):
@@ -238,20 +239,25 @@ class Row:
         self.mp4_q = add(ttk.Combobox(t, width=7, state="readonly"), 0)
         self.mp3_q = add(ttk.Combobox(t, width=9, state="readonly"), 1)
         self.txt_q = add(ttk.Combobox(t, width=10, state="readonly"), 2)
-        for combo in (self.mp4_q, self.mp3_q, self.txt_q):
+        self.slides_q = add(ttk.Combobox(t, width=10, state="readonly"), 3)
+        for combo in self.combos:
             combo.bind("<<ComboboxSelected>>", lambda _e: self._choice_changed())
             combo.grid_remove()                     # shown once the video's options are known
-        self.link = add(ttk.Label(t, text="…", foreground=LINK_COLOR, cursor="hand2"), 3)
+        self.link = add(ttk.Label(t, text="…", foreground=LINK_COLOR, cursor="hand2"), 4)
         self.link.bind("<Button-1>", lambda _e: self.clip and webbrowser.open(self.clip.short_url))
         self.full_title, self.full_channel = url, ""
         self.title = add(ttk.Label(t, text=""), TITLE_COL)
         self.set_title(url)
-        self.channel = add(ttk.Label(t, text=""), 5)
+        self.channel = add(ttk.Label(t, text=""), 6)
         attach_tooltip(self.link, lambda: self.clip.short_url if self.clip else "")
         attach_tooltip(self.title, lambda: self.full_title)
         attach_tooltip(self.channel, lambda: self.full_channel)
         self._build_status(add(ttk.Frame(t), STATUS_COL))
-        add(ttk.Button(t, text="×", width=2, command=lambda: app.remove(self)), 7)
+        add(ttk.Button(t, text="×", width=2, command=lambda: app.remove(self)), 8)
+
+    @property
+    def combos(self):
+        return (self.mp4_q, self.mp3_q, self.txt_q, self.slides_q)
 
     def _build_status(self, cell: ttk.Frame) -> None:
         """The Status cell: the status text, then "open" once a download is done; the progress bar replaces both."""
@@ -279,9 +285,12 @@ class Row:
         tracks = sorted(clip.captions, key=lambda c: core.caption_lang(c[0]).split("-")[0] != i18n.current().split("-")[0])
         self.txt_keys = [None] + list(tracks)                      # the user's own language first
         self.txt_q["values"] = [off] + [_caption_label(k, auto) for k, auto in tracks]
-        self.mp4_q.current(0)                                      # defaults: MP4 off, MP3 at the best bitrate, TXT off
-        self.mp3_q.current(1)
+        self.slides_keys = [None] + list(tracks)                   # a deck needs captions (speech-to-text: #29)
+        self.slides_q["values"] = list(self.txt_q["values"])
+        self.mp4_q.current(0)                                      # defaults: MP4 off, MP3 at the best bitrate, TXT off,
+        self.mp3_q.current(1)                                      # SLIDES off
         self.txt_q.current(0)
+        self.slides_q.current(0)
         self.status.config(text=_t("st_ready"), foreground="")
         self._sync()
 
@@ -298,8 +307,8 @@ class Row:
         self.title.config(text=fit_text(self.app.label_font, self.full_title, px))
 
     def _sync(self) -> None:
-        """The three dropdowns appear once the video's options are known."""
-        for combo in (self.mp4_q, self.mp3_q, self.txt_q):
+        """The format dropdowns appear once the video's options are known."""
+        for combo in self.combos:
             if self.clip is not None:
                 combo.grid()
             else:
@@ -316,18 +325,21 @@ class Row:
 
     def wants(self) -> bool:
         """Is there something to download? Not for a done row: Download does not repeat finished work."""
-        return self.clip is not None and not self.done and any(c.current() > 0 for c in (self.mp4_q, self.mp3_q, self.txt_q))
+        return self.clip is not None and not self.done and any(c.current() > 0 for c in self.combos)
 
     def choices(self):
-        """(mp4 height or None, mp3 kbps or None, (caption key, automatic?) or None); entry 0 of each list is "off"."""
-        mp4 = mp3 = txt = None
+        """(mp4 height or None, mp3 kbps or None, (caption key, automatic?) or None for TXT, the same for SLIDES);
+        entry 0 of each list is "off"."""
+        mp4 = mp3 = txt = slides = None
         if self.mp4_q.current() > 0:
             mp4 = 9999 if self.mp4_q.get() == "best" else int(self.mp4_q.get().rstrip("p"))
         if self.mp3_q.current() > 0:
             mp3 = int(self.mp3_q.get().split()[0])
         if self.txt_q.current() > 0:
             txt = self.txt_keys[self.txt_q.current()]
-        return mp4, mp3, txt
+        if self.slides_q.current() > 0:
+            slides = self.slides_keys[self.slides_q.current()]
+        return mp4, mp3, txt, slides
 
     def set_status(self, text: str, color: str = "") -> None:
         self.bar.grid_remove()
@@ -485,7 +497,7 @@ class App(tk.Tk):
         self.clear_lbl.bind("<Button-1>", lambda _e: self.clear_completed())   # quiet: shown only when there is something to clear
         self.table = ttk.Frame(box, padding=(8, 6))
         self.table.pack(fill="both", expand=True)
-        for c, h in enumerate(["MP4", "MP3", "TXT", _t("col_link"), _t("col_title"), _t("col_channel"), _t("col_status"), ""]):
+        for c, h in enumerate(["MP4", "MP3", "TXT", _t("col_slides"), _t("col_link"), _t("col_title"), _t("col_channel"), _t("col_status"), ""]):
             ttk.Label(self.table, text=h, font=("", 10, "bold")).grid(row=0, column=c, sticky="w", padx=4, pady=(0, 6))
         self.table.columnconfigure(TITLE_COL, weight=1)          # only Title stretches; the others keep their natural width
         self.table.columnconfigure(STATUS_COL, minsize=self.label_font.measure(_t("st_fetching")) + 16)
@@ -741,13 +753,25 @@ class App(tk.Tk):
 
     def _download_all(self, rows: List[Row]) -> None:
         for row in rows:
-            mp4, mp3, txt = row.choices()
+            mp4, mp3, txt, slides_track = row.choices()
 
             def progress(frac: Optional[float], text: str, row=row):
                 self.after(0, row.set_progress, frac, _status_text(text))
 
+            def slides_progress(frac: Optional[float], _text: str, row=row):
+                self.after(0, row.set_progress, frac, _t("st_slides"))
+
             try:
-                files = core.download(row.clip, self.outdir, mp4_height=mp4, mp3_kbps=mp3, txt=txt, progress=progress)
+                files: List[Path] = []
+                if mp4 or mp3 or txt:                       # first: a saved MP4 is then reused by the deck
+                    files = core.download(row.clip, self.outdir, mp4_height=mp4, mp3_kbps=mp3, txt=txt,
+                                          progress=progress)
+                if slides_track:
+                    from . import slides
+                    deck = slides.make_deck(row.clip, self.outdir, track=slides_track, progress=slides_progress)
+                    files.insert(0, deck.path)              # "open" shows the deck
+                    for w in deck.warnings:
+                        self.log(f"slides: {w}")
                 self.after(0, row.finish, files)
                 self.log(f"saved {[str(f) for f in files]}")
             except Exception as e:
@@ -936,21 +960,26 @@ def _selftest_row(app: App, url: str, fill: bool = True) -> Row:
 
 
 def _selftest_formats(app: App, row: Row) -> None:
-    """Three dropdowns, "off" first; defaults MP4 off, MP3 best, TXT off; any one of them arms Download (#16)."""
+    """Four dropdowns, "off" first; defaults MP4 off, MP3 best, TXT off, SLIDES off; any one arms Download (#16, #28)."""
     off = _t("fmt_off")
-    assert row.mp4_q["values"][0] == off and row.mp3_q["values"][0] == off and row.txt_q["values"][0] == off
-    assert row.choices() == (None, 128, None), row.choices()
+    assert all(c["values"][0] == off for c in row.combos)
+    assert row.choices() == (None, 128, None, None), row.choices()
     row.mp3_q.current(0); row._choice_changed(); app.update()
     assert not row.wants() and str(app.dl_btn["state"]) == "disabled", "all off must disable Download"
     auto_en = row.txt_keys.index(("en-orig", True))        # position depends on the UI language: look it up
     if i18n.current() == "en":
         assert auto_en == 1, f"the UI language should come first: {row.txt_keys}"
     row.txt_q.current(auto_en); row._choice_changed(); app.update()
-    assert row.choices() == (None, None, ("en-orig", True)), row.choices()
+    assert row.choices() == (None, None, ("en-orig", True), None), row.choices()
     assert row.txt_q.get() == _t("fmt_auto", lang="en") and str(app.dl_btn["state"]) != "disabled"
     row.mp4_q.current(1)
     assert row.choices()[0] == 1080
-    row.mp4_q.current(0); row.mp3_q.current(1); row.txt_q.current(0); row._choice_changed()
+    row.mp4_q.current(0); row.txt_q.current(0); row._choice_changed()
+    # SLIDES (#28): the same caption tracks as TXT, and slides alone are enough to download
+    assert list(row.slides_q["values"]) == list(row.txt_q["values"]) and row.slides_keys == row.txt_keys
+    row.slides_q.current(auto_en); row._choice_changed(); app.update()
+    assert row.choices() == (None, None, None, ("en-orig", True)) and str(app.dl_btn["state"]) != "disabled"
+    row.slides_q.current(0); row.mp3_q.current(1); row._choice_changed()
     for kind in ("channel", "playlist"):                    # #17: the probe's NotAVideo maps to a translated message
         assert core.NotAVideo(kind).kind == kind and _t("err_" + kind) != "err_" + kind
     assert core.vtt_to_text("WEBVTT\n\n00:00.000 --> 00:01.000\na<00:00.5><c> b</c>\n\n00:01.000 --> 00:02.000\na b\nc &amp; d\n") == "a b\nc & d\n"
@@ -959,7 +988,7 @@ def _selftest_formats(app: App, row: Row) -> None:
 def _selftest_min_size(app: App) -> None:
     """At the minimum size, every control gets the width it asks for."""
     row = app.rows[0]
-    row.mp4_q.current(1); row.txt_q.current(2); row._sync()
+    row.mp4_q.current(1); row.txt_q.current(2); row.slides_q.current(2); row._sync()
     app.geometry("%dx%d" % MIN_SIZE); app.update(); app.update()
     cut = [w for w in (app.dl_btn, app.add_btn, app.info_btn, app.help_btn, *row.w)
            if w.winfo_ismapped() and w is not row.title and w.winfo_width() < w.winfo_reqwidth()]
@@ -967,7 +996,7 @@ def _selftest_min_size(app: App) -> None:
     right = app.winfo_rootx() + app.winfo_width()
     assert all(w.winfo_rootx() + w.winfo_width() <= right for w in row.w), "a column runs past the window"
     assert row.title.winfo_width() >= TITLE_MIN_PX, "no room left for the title"
-    row.mp4_q.current(0); row.txt_q.current(0); row._sync()
+    row.mp4_q.current(0); row.txt_q.current(0); row.slides_q.current(0); row._sync()
 
 
 def _selftest_long_folder(app: App) -> None:
@@ -1050,7 +1079,7 @@ def _selftest_close(app: App) -> None:
 
 def _selftest_status_fits(app: App, row: Row) -> None:
     """Each status text, and "done ✓ open", fits the Status cell at the minimum size."""
-    texts = [_t(k) for k in ("st_fetching", "st_ready", "st_error", "st_downloading", "st_processing")]
+    texts = [_t(k) for k in ("st_fetching", "st_ready", "st_error", "st_downloading", "st_processing", "st_slides")]
     for text in texts + [_status_text("retrying 1/2")]:
         row.set_status(text); app.update()
         assert row.status.winfo_width() >= row.status.winfo_reqwidth(), f"status cut: {text!r}"
