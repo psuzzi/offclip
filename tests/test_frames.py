@@ -1,12 +1,14 @@
 """slides.frames: frame numbers and visual cuts on frames built in memory, plus one real ffmpeg round trip."""
 import random
-import shutil
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
+from offclip import core
 from offclip.slides import frames as fr
+
+FFMPEG = core.ffmpeg_path()          # the one offclip uses: system ffmpeg, else imageio-ffmpeg's
 
 W, H = fr.WIDTH, fr.HEIGHT
 
@@ -97,10 +99,10 @@ class Cuts(unittest.TestCase):
         self.assertEqual(fr.visual_candidates(fr.stats_of_frames([SLIDE_A])), [])
 
 
-@unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg not installed")
+@unittest.skipUnless(FFMPEG, "no ffmpeg: install one, or pip install imageio-ffmpeg")
 class FromFfmpeg(unittest.TestCase):
     def test_round_trip_and_cache(self):
-        ffmpeg = shutil.which("ffmpeg")
+        ffmpeg = FFMPEG
         with tempfile.TemporaryDirectory() as d:
             video = Path(d) / "v.mp4"
             subprocess.run([ffmpeg, "-v", "error", "-f", "lavfi", "-i", "color=c=white:s=320x180:d=4:r=25",
@@ -120,7 +122,7 @@ class FromFfmpeg(unittest.TestCase):
             bad = Path(d) / "bad.mp4"
             bad.write_bytes(b"not a video")
             with self.assertRaises(RuntimeError):
-                fr.read_stats(bad, shutil.which("ffmpeg"))
+                fr.read_stats(bad, FFMPEG)
 
 
 if __name__ == "__main__":
