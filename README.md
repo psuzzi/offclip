@@ -106,9 +106,11 @@ for example `because: Python 3.12.1 at /usr/local/bin/python3 has no Tkinter`.
 
 - Paste a link in the box and press *Enter* (or *Add link*). The row fills in with the title, the
   channel and a short link that opens the video in your browser.
-- Each row has three lists, **MP4**, **MP3** and **TXT**. The first entry of each is *off*; the others are what
-  that video offers: video heights, audio bitrates, and caption languages for a plain-text transcript
-  (*auto* marks YouTube's automatic captions). By default MP3 is on at the best bitrate, MP4 and TXT are off.
+- Each row has four lists, **MP4**, **MP3**, **TXT** and **Slides**. The first entry of each is *off*; the others
+  are what that video offers: video heights, audio bitrates, and caption languages for a plain-text transcript or
+  for a slide deck (*auto* marks YouTube's automatic captions). By default MP3 is on at the best bitrate, the others
+  are off. *Slides* makes a study deck from the captions and the video (see [Slides](#slides-experimental)); with
+  MP4 on as well, the deck reuses the saved video.
 - *Choose folder…* sets where files go (remembered between runs; default is your Downloads folder).
 - *Download* saves every row that has something selected, one after the other. The *Status* column shows progress.
 - Top right: the yellow **?** reports a problem (your text plus the versions and last log lines go into a prefilled
@@ -141,9 +143,11 @@ for example `because: Python 3.12.1 at /usr/local/bin/python3 has no Tkinter`.
 
 On Windows use `run.bat` instead of `./run.sh`. Files are named `Title [videoid].mp3` / `.mp4`.
 
-## Slides (command line, experimental)
+## Slides (experimental)
 
-Turn a talk, lecture or tutorial into a study deck you can skim, keep in your notes and present:
+Turn a talk, lecture or tutorial into a study deck you can skim, keep in your notes and present. In the window,
+choose a caption language in the **Slides** list of a row and press *Download*; *open* then shows the deck.
+On the command line:
 
 ```
 ./run.sh --slides URL              # a deck from the captions and the video

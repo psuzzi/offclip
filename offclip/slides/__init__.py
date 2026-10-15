@@ -10,7 +10,7 @@ import datetime
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Tuple
 
 from .. import __version__, core
 from . import deck, frames, segment, signals, text
@@ -42,11 +42,13 @@ def settings() -> dict:
     return {k: type(v)(user.get(k, v)) for k, v in DEFAULTS.items()}
 
 
-def make_deck(clip: core.Clip, outdir: str, *, lang: str = "", progress: Optional[Progress] = None,
-              vtt: Optional[str] = None, video: Optional[Path] = None, opts: Optional[dict] = None) -> Deck:
+def make_deck(clip: core.Clip, outdir: str, *, lang: str = "", track: Optional[Tuple[str, bool]] = None,
+              progress: Optional[Progress] = None, vtt: Optional[str] = None, video: Optional[Path] = None,
+              opts: Optional[dict] = None) -> Deck:
     """Write the deck of `clip` into `outdir`/<Title> [<id>]/ and return it.
 
-    `vtt` and `video` skip fetching them (tests, or files already at hand). Without a usable video the deck is still
+    `track` = (caption key, automatic?) from clip.captions, exactly (the window's SLIDES list); else the first track in
+    `lang`, or the first of all. `vtt` and `video` skip fetching them (tests, or files already at hand). Without a usable video the deck is still
     written, text only, with a warning; without captions NoCaptions is raised.
     """
     o = dict(settings() if opts is None else dict(DEFAULTS, **opts))
@@ -62,7 +64,8 @@ def make_deck(clip: core.Clip, outdir: str, *, lang: str = "", progress: Optiona
 
     # 1. transcript
     if vtt is None:
-        tracks = [t for t in clip.captions if not lang or core.caption_lang(t[0]).split("-")[0] == lang.split("-")[0]]
+        tracks = [track] if track else \
+            [t for t in clip.captions if not lang or core.caption_lang(t[0]).split("-")[0] == lang.split("-")[0]]
         if not tracks:
             have = ", ".join(core.caption_lang(k) for k, _ in clip.captions) or "none"
             raise NoCaptions(f"no captions{' in ' + lang if lang else ''} (this video has: {have}); "

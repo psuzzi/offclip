@@ -8,6 +8,7 @@
   found from the uploader's chapters, slide changes, topic changes, cue phrases and pauses, kept between 30 s and
   2 min. Everything runs locally with what offclip already has; about 30 s for an hour of video (#19–#23).
 - `--slides LANG` picks the caption language; an MP4 saved in the same folder is reused.
+- **Slides in the window:** a fourth list per row, *Slides*, next to MP4, MP3 and TXT: choose a caption language and press *Download*; *open* shows the deck. The smallest window is a little wider (1040 px) to make room (#28).
 
 ## 1.1.18 — 2026-10-15
 
